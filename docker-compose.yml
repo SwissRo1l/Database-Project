@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:16
+    container_name: market-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: market
+      POSTGRES_USER: market
+      POSTGRES_PASSWORD: market
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+volumes:
+  pgdata:
