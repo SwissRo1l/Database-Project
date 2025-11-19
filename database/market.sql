@@ -1,6 +1,6 @@
 CREATE TABLE Player (
     player_id SERIAL PRIMARY KEY,
-    username VARCHAR(50) UNIQUE NOT NULL,
+    player_name VARCHAR(50) UNIQUE NOT NULL,
     level INT DEFAULT 1,
     register_time TIMESTAMP DEFAULT NOW()
 );
