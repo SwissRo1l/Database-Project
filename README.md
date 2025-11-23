@@ -46,11 +46,13 @@ Database-Project/
 docker run --name market-postgres -e POSTGRES_PASSWORD=market -e POSTGRES_USER=market -e POSTGRES_DB=market -p 5432:5432 -d postgres:16
 ```
 
-**如果你在 Dev Container / Codespaces 环境:**
-PostgreSQL 通常已经预装并启动。你可以直接使用以下命令初始化数据（如果需要）：
+**初始化数据库表结构:**
+项目包含一个 `database/market.sql` 文件，用于创建所需的数据库表（Schema）。
+如果你的数据库是空的，请运行以下命令来初始化表结构：
 ```bash
 psql -h localhost -U market -d market -f database/market.sql
 ```
+*注意：测试数据（用户、物品等）将由后端应用启动时的 `DataLoader` 自动填充，无需手动插入。*
 
 ### 3. 启动后端 (Backend)
 打开一个新的终端窗口，运行：
