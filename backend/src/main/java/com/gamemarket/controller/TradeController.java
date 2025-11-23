@@ -27,18 +27,17 @@ public class TradeController {
     @Autowired
     private AssetRepository assetRepository;
 
+    @Autowired
+    private com.gamemarket.service.OrderService orderService;
+
     @PostMapping("/orders")
     public Map<String, String> createOrder(@RequestBody Map<String, Object> payload) {
-        MarketOrder order = new MarketOrder();
-        order.setPlayerId(1); // Hardcoded user for now
-        order.setAsset(assetRepository.findById((Integer) payload.get("itemId")).get());
-        order.setPrice(new BigDecimal(payload.get("price").toString()));
-        order.setQuantity((Integer) payload.get("amount"));
-        order.setOrderType((String) payload.get("type"));
-        order.setStatus("OPEN");
-        
-        orderRepository.save(order);
-        return Map.of("message", "Order created successfully");
+        try {
+            orderService.createOrder(payload, 1);
+            return Map.of("message", "Order created successfully");
+        } catch (RuntimeException ex) {
+            return Map.of("message", "Order creation failed: " + ex.getMessage());
+        }
     }
 
     @GetMapping("/orders")
@@ -56,5 +55,14 @@ public class TradeController {
             )).collect(Collectors.toList());
         }
         return List.of();
+    }
+    @DeleteMapping("/orders/{orderId}")
+    public Map<String, String> cancelOrder(@PathVariable Integer orderId) {
+        try {
+            orderService.cancelOrder(orderId, 1);
+            return Map.of("message", "Order cancelled successfully");
+        } catch (RuntimeException ex) {
+            return Map.of("message", "Cancel failed: " + ex.getMessage());
+        }
     }
 }

@@ -8,4 +8,6 @@ import java.util.List;
 @Repository
 public interface PlayerAssetRepository extends JpaRepository<PlayerAsset, Integer> {
     List<PlayerAsset> findByPlayerId(Integer playerId);
+
+    PlayerAsset findByPlayerIdAndAsset_AssetId(Integer playerId, Integer assetId);
 }

@@ -24,4 +24,9 @@ public class Wallet {
     public void setPlayerId(Integer playerId) { this.playerId = playerId; }
     public BigDecimal getBalance() { return balance; }
     public void setBalance(BigDecimal balance) { this.balance = balance; }
+    @Column(name = "reserved")
+    private BigDecimal reserved = BigDecimal.ZERO;
+
+    public BigDecimal getReserved() { return reserved; }
+    public void setReserved(BigDecimal reserved) { this.reserved = reserved; }
 }

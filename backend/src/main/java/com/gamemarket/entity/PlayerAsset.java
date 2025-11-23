@@ -19,6 +19,9 @@ public class PlayerAsset {
     @Column(name = "quantity")
     private Integer quantity = 1;
 
+    @Column(name = "reserved_quantity")
+    private Integer reservedQuantity = 0;
+
     // Getters and Setters
     public Integer getId() { return id; }
     public void setId(Integer id) { this.id = id; }
@@ -28,4 +31,6 @@ public class PlayerAsset {
     public void setAsset(Asset asset) { this.asset = asset; }
     public Integer getQuantity() { return quantity; }
     public void setQuantity(Integer quantity) { this.quantity = quantity; }
+    public Integer getReservedQuantity() { return reservedQuantity; }
+    public void setReservedQuantity(Integer reservedQuantity) { this.reservedQuantity = reservedQuantity; }
 }
