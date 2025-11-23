@@ -10,7 +10,7 @@
           <h1>{{ item.name }}</h1>
           <p class="price">{{ item.price }} G</p>
           <p class="change" :class="{ up: item.change > 0, down: item.change < 0 }">
-            {{ item.change > 0 ? '+' : '' }}{{ item.change }}% (24h)
+            {{ item.change > 0 ? '+' : '' }}{{ Number(item.change).toFixed(2) }}% (24h)
           </p>
           <p class="description">
             这是一个非常稀有的物品，拥有强大的属性。

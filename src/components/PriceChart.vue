@@ -6,8 +6,15 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import * as echarts from 'echarts'
+
+const props = defineProps({
+  basePrice: {
+    type: Number,
+    default: 1000
+  }
+})
 
 const chartRef = ref(null)
 let chartInstance = null
@@ -16,12 +23,12 @@ let chartInstance = null
 const generateData = () => {
   const data = []
   const now = new Date()
-  let value = 1000
+  let value = props.basePrice
   
   for (let i = 0; i < 24; i++) {
     const time = new Date(now.getTime() - (23 - i) * 3600 * 1000)
     // 随机波动
-    value = value + (Math.random() - 0.5) * 50
+    value = value + (Math.random() - 0.5) * (props.basePrice * 0.05)
     data.push({
       time: `${time.getHours()}:00`,
       value: Math.floor(value)
@@ -32,6 +39,10 @@ const generateData = () => {
 
 const initChart = () => {
   if (!chartRef.value) return
+  
+  if (chartInstance) {
+    chartInstance.dispose()
+  }
   
   chartInstance = echarts.init(chartRef.value)
   const data = generateData()
@@ -84,6 +95,10 @@ const initChart = () => {
   
   chartInstance.setOption(option)
 }
+
+watch(() => props.basePrice, () => {
+  initChart()
+})
 
 const handleResize = () => {
   chartInstance?.resize()

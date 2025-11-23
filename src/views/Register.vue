@@ -40,6 +40,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { register } from '../api/auth'
 
 const router = useRouter()
 const username = ref('')
@@ -47,14 +48,36 @@ const email = ref('')
 const password = ref('')
 const confirmPassword = ref('')
 
-const handleRegister = () => {
+const handleRegister = async () => {
   if (password.value !== confirmPassword.value) {
     alert('两次输入的密码不一致')
     return
   }
-  // Mock register
-  console.log('Registering', username.value, email.value)
-  router.push('/login')
+
+  try {
+    const res = await register({
+      username: username.value,
+      email: email.value,
+      password: password.value
+    })
+    
+    if (res && res.token) {
+      // Auto login
+      localStorage.setItem('token', res.token)
+      localStorage.setItem('userId', res.userId)
+      localStorage.setItem('username', res.username)
+      alert('注册成功，即将进入市场')
+      router.push('/market')
+    } else {
+      // Fallback if no token returned (should not happen with new backend)
+      alert('注册成功，请登录')
+      router.push('/login')
+    }
+  } catch (error) {
+    console.error(error)
+    const message = error.response?.data?.message || error.message || '未知错误'
+    alert('注册失败: ' + message)
+  }
 }
 </script>
 

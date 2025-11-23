@@ -7,10 +7,9 @@
           <img src="https://via.placeholder.com/100" alt="Avatar">
         </div>
         <div class="user-info">
-          <h2>{{ user.username }}</h2>
-          <p class="uid">UID: {{ user.uid }}</p>
+          <h2>{{ user.username }}<span class="uid-tag">#{{ user.uid }}</span></h2>
           <div class="tags">
-            <span class="tag vip">VIP 3</span>
+            <span class="tag vip">VIP {{ Math.floor(user.balance / 10000) }}</span>
             <span class="tag verified">已认证</span>
           </div>
         </div>
@@ -44,11 +43,14 @@
           <h3>账户设置</h3>
           <div class="setting-item">
             <label>用户名</label>
-            <input type="text" value="PlayerOne" disabled>
+            <div class="input-group">
+              <input type="text" v-model="editName" :placeholder="user.username">
+              <button class="btn-small" @click="updateName">修改</button>
+            </div>
           </div>
           <div class="setting-item">
             <label>邮箱</label>
-            <input type="email" value="player@example.com">
+            <input type="email" :value="user.email" disabled>
           </div>
           <div class="setting-item">
             <label>密码</label>
@@ -65,7 +67,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import NavBar from '../components/NavBar.vue'
-import { fetchProfile } from '../api/user'
+import { fetchProfile, updateProfile } from '../api/user'
 import { fetchOrders } from '../api/trade'
 
 const router = useRouter()
@@ -73,33 +75,50 @@ const user = ref({
   username: 'PlayerOne',
   email: 'player@example.com',
   balance: 0,
-  uid: '88483920'
+  uid: '0'
 })
 const history = ref([])
+const editName = ref('')
 
 onMounted(async () => {
+  const userId = localStorage.getItem('userId')
+  if (!userId) {
+    router.push('/login')
+    return
+  }
+
   try {
-    // Fetch Profile (User ID 1)
-    const profileRes = await fetchProfile(1)
+    // Fetch Profile
+    const profileRes = await fetchProfile(userId)
     if (profileRes) {
       user.value = { ...user.value, ...profileRes }
+      editName.value = user.value.username
     }
 
     // Fetch History
-    const ordersRes = await fetchOrders({ userId: 1, limit: 5 })
+    const ordersRes = await fetchOrders({ userId: userId, limit: 5 })
     history.value = ordersRes || []
   } catch (e) {
     console.error(e)
-    // Fallback mock history
-    history.value = [
-      { id: 1, type: 'buy', itemName: 'AK47 | 火蛇', date: '2023-10-24 14:30', amount: -450, price: 450 },
-      { id: 2, type: 'sell', itemName: 'M4A4 | 咆哮', date: '2023-10-23 09:15', amount: 1200, price: 1200 }
-    ]
   }
 })
 
+const updateName = async () => {
+  if (!editName.value || editName.value === user.value.username) return
+  
+  try {
+    await updateProfile(user.value.uid, { username: editName.value })
+    user.value.username = editName.value
+    localStorage.setItem('username', editName.value)
+    alert('用户名修改成功')
+  } catch (e) {
+    console.error(e)
+    alert('修改失败')
+  }
+}
+
 const logout = () => {
-  // Clear token logic here
+  localStorage.clear()
   router.push('/login')
 }
 </script>

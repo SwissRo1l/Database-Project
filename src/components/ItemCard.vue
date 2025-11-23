@@ -12,7 +12,7 @@
       class="change"
       :class="item.change >= 0 ? 'up' : 'down'"
     >
-      {{ item.change >= 0 ? '+' : '' }}{{ item.change }}%
+      {{ item.change >= 0 ? '+' : '' }}{{ Number(item.change).toFixed(2) }}%
     </p>
 
     <button class="button-primary">查看详情</button>

@@ -35,10 +35,26 @@ public class UserController {
         
         return Map.<String, Object>of(
             "username", player.getPlayerName(),
-            "email", "user@example.com", // Mock
+            "email", player.getEmail() != null ? player.getEmail() : "",
             "balance", wallet != null ? wallet.getBalance() : BigDecimal.ZERO,
             "uid", player.getPlayerId().toString()
         );
+    }
+
+    @PutMapping("/{id}")
+    public Map<String, Object> updateProfile(@PathVariable Integer id, @RequestBody Map<String, String> data) {
+        Player player = playerRepository.findById(id).orElseThrow(() -> new RuntimeException("User not found"));
+        
+        if (data.containsKey("username")) {
+            player.setPlayerName(data.get("username"));
+        }
+        if (data.containsKey("password")) {
+            player.setPassword(data.get("password"));
+        }
+        
+        playerRepository.save(player);
+        
+        return Map.of("message", "Profile updated successfully");
     }
 
     @GetMapping("/{id}/inventory")

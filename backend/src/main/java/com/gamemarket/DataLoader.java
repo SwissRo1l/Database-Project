@@ -11,8 +11,9 @@ import com.gamemarket.repository.WalletRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
-
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 @Component
 public class DataLoader implements CommandLineRunner {
@@ -21,6 +22,7 @@ public class DataLoader implements CommandLineRunner {
     private final AssetRepository assetRepository;
     private final WalletRepository walletRepository;
     private final MarketOrderRepository marketOrderRepository;
+    private final Random random = new Random();
 
     public DataLoader(PlayerRepository playerRepository, AssetRepository assetRepository, WalletRepository walletRepository, MarketOrderRepository marketOrderRepository) {
         this.playerRepository = playerRepository;
@@ -31,34 +33,63 @@ public class DataLoader implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        if (playerRepository.count() == 0) {
-            Player player = new Player();
-            player.setPlayerName("testuser");
-            player.setLevel(1);
-            playerRepository.save(player);
+        if (assetRepository.count() < 10) {
+            System.out.println("Seeding database with initial data...");
+            seedData();
+            System.out.println("Database seeding completed.");
+        }
+    }
 
-            Wallet wallet = new Wallet();
-            wallet.setPlayerId(player.getPlayerId());
-            wallet.setBalance(new BigDecimal("1000.00"));
-            walletRepository.save(wallet);
+    private void seedData() {
+        // Create Players
+        List<Player> players = new ArrayList<>();
+        String[] playerNames = {"ProGamer123", "NoobMaster69", "TraderJoe", "CryptoKing", "LootGoblin", "SniperWolf", "RushB", "Camper", "Admin", "Whale"};
+        
+        for (String name : playerNames) {
+            Player p = new Player();
+            p.setPlayerName(name);
+            p.setLevel(random.nextInt(100) + 1);
+            players.add(playerRepository.save(p));
+
+            Wallet w = new Wallet();
+            w.setPlayerId(p.getPlayerId());
+            w.setBalance(new BigDecimal(random.nextInt(10000) + 100));
+            walletRepository.save(w);
         }
 
-        if (assetRepository.count() == 0) {
-            createAsset("Sword of Truth", "Weapon", new BigDecimal("500.00"));
-            createAsset("Shield of Valor", "Armor", new BigDecimal("300.00"));
-            createAsset("Potion of Healing", "Consumable", new BigDecimal("50.00"));
-        }
+        // Create Assets (CS:GO Style Skins)
+        List<Asset> assets = new ArrayList<>();
+        String[] weaponTypes = {"Rifle", "Sniper", "Pistol", "Knife", "SMG", "Shotgun"};
+        String[] skinNames = {"Dragon Lore", "Asiimov", "Redline", "Fade", "Hyper Beast", "Neo-Noir", "Vulcan", "Case Hardened", "Doppler", "Howl"};
+        String[] weapons = {"AWP", "AK-47", "M4A4", "Desert Eagle", "Karambit", "Butterfly Knife", "USP-S", "Glock-18"};
 
-        if (marketOrderRepository.count() == 0) {
-            List<Asset> assets = assetRepository.findAll();
-            if (!assets.isEmpty()) {
-                Asset sword = assets.stream().filter(a -> a.getAssetName().contains("Sword")).findFirst().orElse(assets.get(0));
-                Asset shield = assets.stream().filter(a -> a.getAssetName().contains("Shield")).findFirst().orElse(assets.get(0));
-
-                createOrder(1, sword, "SELL", new BigDecimal("550.00"), 1);
-                createOrder(1, shield, "SELL", new BigDecimal("320.00"), 1);
+        for (String weapon : weapons) {
+            for (String skin : skinNames) {
+                String fullName = weapon + " | " + skin;
+                String type = determineType(weapon);
+                BigDecimal basePrice = new BigDecimal(random.nextInt(2000) + 50);
+                assets.add(createAsset(fullName, type, basePrice));
             }
         }
+
+        // Create Market Orders
+        for (int i = 0; i < 100; i++) {
+            Player seller = players.get(random.nextInt(players.size()));
+            Asset asset = assets.get(random.nextInt(assets.size()));
+            
+            // Price variation around base price
+            BigDecimal price = asset.getBasePrice().multiply(new BigDecimal(0.8 + (random.nextDouble() * 0.4))); // +/- 20%
+            
+            createOrder(seller.getPlayerId(), asset, "SELL", price, 1);
+        }
+    }
+
+    private String determineType(String weapon) {
+        if (weapon.contains("AWP")) return "Sniper";
+        if (weapon.contains("AK-47") || weapon.contains("M4A4")) return "Rifle";
+        if (weapon.contains("Desert Eagle") || weapon.contains("USP-S") || weapon.contains("Glock-18")) return "Pistol";
+        if (weapon.contains("Knife") || weapon.contains("Karambit")) return "Knife";
+        return "Rifle";
     }
 
     private Asset createAsset(String name, String type, BigDecimal price) {

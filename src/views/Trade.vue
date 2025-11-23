@@ -50,6 +50,7 @@
       </div>
 
       <div class="order-book">
+        <PriceChart v-if="selectedItem" :base-price="currentPrice" class="mb-4" />
         <h3>市场挂单</h3>
         <div class="book-header">
           <span>价格</span>
@@ -57,10 +58,13 @@
           <span>时间</span>
         </div>
         <div class="book-list">
-          <div class="book-item" v-for="i in 10" :key="i">
-            <span :class="i % 2 === 0 ? 'text-up' : 'text-down'">{{ (100 + i * 2).toFixed(2) }}</span>
-            <span>{{ i }}</span>
-            <span class="time">12:0{{ i }}</span>
+          <div class="book-item" v-for="order in marketOrders" :key="order.id">
+            <span class="text-up">{{ order.price.toFixed(2) }}</span>
+            <span>1</span>
+            <span class="time">刚刚</span>
+          </div>
+          <div v-if="marketOrders.length === 0" class="no-data">
+            暂无挂单
           </div>
         </div>
       </div>
@@ -69,9 +73,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import NavBar from '../components/NavBar.vue'
+import PriceChart from '../components/PriceChart.vue'
 import { fetchListings } from '../api/market'
 import { createOrder } from '../api/trade'
 
@@ -81,18 +86,59 @@ const selectedItem = ref('')
 const price = ref('')
 const amount = ref(1)
 const items = ref([])
+const marketOrders = ref([])
+const currentPrice = ref(1000)
+
+const fetchMarketOrders = async () => {
+  if (!selectedItem.value) return
+  
+  try {
+    const res = await fetchListings({ itemId: selectedItem.value, limit: 20 })
+    marketOrders.value = res || []
+    
+    // Update current price based on the lowest sell order or item base price
+    if (marketOrders.value.length > 0) {
+      // Assuming listings are sorted by price ascending (cheapest first)
+      // If not, we should sort them or pick the first one
+      currentPrice.value = marketOrders.value[0].price
+      price.value = currentPrice.value // Auto-fill price
+    } else {
+      // Fallback to item base price if available in items list
+      const item = items.value.find(i => i.id === selectedItem.value)
+      if (item) {
+        currentPrice.value = item.price
+        price.value = item.price
+      }
+    }
+  } catch (e) {
+    console.error('Failed to fetch market orders:', e)
+  }
+}
+
+watch(selectedItem, () => {
+  fetchMarketOrders()
+})
 
 onMounted(async () => {
   // Load items for dropdown
   try {
     const res = await fetchListings({ limit: 100 })
-    items.value = res || []
+    // Deduplicate items by ID
+    const uniqueItems = []
+    const seenIds = new Set()
+    for (const item of res) {
+      if (!seenIds.has(item.id)) {
+        seenIds.add(item.id)
+        uniqueItems.push(item)
+      }
+    }
+    items.value = uniqueItems
   } catch (e) {
     console.error(e)
     items.value = [
-      { id: 1, name: 'AK47 | 火蛇' },
-      { id: 2, name: 'M4A4 | 咆哮' },
-      { id: 3, name: 'AWP | 巨龙传说' }
+      { id: 1, name: 'AK47 | 火蛇', price: 45600 },
+      { id: 2, name: 'M4A4 | 咆哮', price: 120000 },
+      { id: 3, name: 'AWP | 巨龙传说', price: 850000 }
     ]
   }
 
@@ -226,4 +272,14 @@ const executeTrade = async () => {
 .text-up { color: var(--up); }
 .text-down { color: var(--down); }
 .time { color: var(--text-light); }
+
+.mb-4 {
+  margin-bottom: 20px;
+}
+
+.no-data {
+  padding: 20px;
+  text-align: center;
+  color: var(--text-light);
+}
 </style>

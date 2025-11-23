@@ -23,19 +23,30 @@ public class MarketController {
     private AssetRepository assetRepository;
 
     @GetMapping("/listings")
-    public List<Map<String, Object>> getListings(@RequestParam(required = false) String sort, @RequestParam(required = false) Integer limit) {
-        // Simplified logic: return open orders as listings
-        // In a real app, this would aggregate data or filter by sort type (hot, gainers)
+    public List<Map<String, Object>> getListings(
+            @RequestParam(required = false) String sort, 
+            @RequestParam(required = false) Integer limit,
+            @RequestParam(required = false) Integer itemId) {
+        
         List<MarketOrder> orders = orderRepository.findByStatus("OPEN");
         
-        return orders.stream().limit(limit != null ? limit : 10).map(order -> {
+        if (itemId != null) {
+            orders = orders.stream()
+                .filter(o -> o.getAsset().getAssetId().equals(itemId))
+                .collect(Collectors.toList());
+        }
+        
+        return orders.stream().limit(limit != null ? limit : 50).map(order -> {
             Asset asset = order.getAsset();
+            String encodedName = asset.getAssetName().replace(" ", "+");
+            String imgUrl = "https://via.placeholder.com/300x200?text=" + encodedName;
+            
             return Map.<String, Object>of(
                 "id", asset.getAssetId(),
                 "name", asset.getAssetName(),
                 "price", order.getPrice(),
-                "change", 0.0, // Mock change
-                "img", "https://via.placeholder.com/300x200" // Mock image
+                "change", (Math.random() * 10) - 5, // Mock change between -5% and +5%
+                "img", imgUrl
             );
         }).collect(Collectors.toList());
     }

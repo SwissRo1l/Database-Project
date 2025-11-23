@@ -31,15 +31,28 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { login } from '../api/auth'
 
 const router = useRouter()
 const username = ref('')
 const password = ref('')
 
-const handleLogin = () => {
-  // Mock login
-  console.log('Logging in with', username.value, password.value)
-  router.push('/market')
+const handleLogin = async () => {
+  try {
+    const res = await login({ username: username.value, password: password.value })
+    if (res && res.token) {
+      localStorage.setItem('token', res.token)
+      localStorage.setItem('userId', res.userId)
+      localStorage.setItem('username', res.username)
+      router.push('/market')
+    } else {
+      alert('登录失败，请检查用户名和密码')
+    }
+  } catch (error) {
+    console.error(error)
+    const message = error.response?.data?.message || error.message || '未知错误'
+    alert('登录失败: ' + message)
+  }
 }
 </script>
 
