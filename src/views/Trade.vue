@@ -21,12 +21,25 @@
         <div class="trade-content">
           <div class="form-group">
             <label>选择物品</label>
-            <select v-model="selectedItem">
-              <option value="" disabled>请选择...</option>
-              <option v-for="item in items" :key="item.id" :value="item.id">
-                {{ item.name }}
-              </option>
-            </select>
+            <div class="custom-select" ref="dropdownRef">
+              <button class="select-toggle" @click.stop="toggleDropdown">
+                <span v-if="selectedItemName">{{ selectedItemName }}</span>
+                <span v-else class="placeholder">请选择...</span>
+                <span class="arrow">▾</span>
+              </button>
+
+              <ul v-show="showDropdown" class="select-list" @click.stop>
+                <li class="select-placeholder" @click="clearSelection">
+                  请选择...
+                </li>
+                <li v-for="item in items" :key="item.id"
+                    :class="{ 'is-selected': item.id === selectedItem }
+                    "
+                    @click="selectItem(item.id)">
+                  {{ item.name }}
+                </li>
+              </ul>
+            </div>
           </div>
 
           <div class="form-group">
@@ -73,7 +86,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, nextTick, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import NavBar from '../components/NavBar.vue'
 import PriceChart from '../components/PriceChart.vue'
@@ -117,6 +130,43 @@ const fetchMarketOrders = async () => {
 
 watch(selectedItem, () => {
   fetchMarketOrders()
+})
+
+// Custom dropdown state & helpers
+const showDropdown = ref(false)
+const dropdownRef = ref(null)
+const selectedItemName = computed(() => {
+  const itm = items.value.find(i => i.id === selectedItem.value)
+  return itm ? itm.name : ''
+})
+
+const toggleDropdown = () => {
+  showDropdown.value = !showDropdown.value
+}
+
+const selectItem = (id) => {
+  selectedItem.value = id
+  showDropdown.value = false
+}
+
+const clearSelection = () => {
+  selectedItem.value = ''
+  showDropdown.value = false
+}
+
+const handleDocClick = (e) => {
+  if (!dropdownRef.value) return
+  if (!dropdownRef.value.contains(e.target)) {
+    showDropdown.value = false
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('click', handleDocClick)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', handleDocClick)
 })
 
 onMounted(async () => {
@@ -239,6 +289,66 @@ const executeTrade = async () => {
   border-radius: 6px;
   color: var(--text);
 }
+
+/* Make dropdown options readable and style the selected option */
+.form-group select option {
+  color: var(--text);
+  background: var(--panel);
+}
+
+/* When option is selected in the native dropdown, give it a darker background */
+.form-group select option:checked {
+  background: rgba(0,0,0,0.6);
+  color: var(--text-light);
+}
+
+/* Hover state in dropdown (may be honored by some browsers) */
+.form-group select option:hover {
+  background: rgba(255,255,255,0.03);
+}
+
+/* Custom select styles */
+.custom-select {
+  position: relative;
+}
+.select-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 12px;
+  background: rgba(0,0,0,0.2); /* restore original dark background */
+  border: 1px solid rgba(255,255,255,0.1); /* original border */
+  border-radius: 6px;
+  color: var(--text);
+  cursor: pointer;
+}
+.select-toggle .placeholder { color: rgba(255,255,255,0.4); }
+.select-toggle .arrow { color: rgba(255,255,255,0.6); }
+.select-list {
+  position: absolute;
+  left: 0;
+  right: 0;
+  max-height: 320px;
+  overflow: auto;
+  background: #ffffff; /* white dropdown background */
+  border: 1px solid rgba(0,0,0,0.08);
+  margin-top: 8px;
+  border-radius: 6px;
+  z-index: 50;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+}
+.select-list li {
+  padding: 12px;
+  color: #111; /* dark text for items */
+  cursor: pointer;
+}
+.select-list li.is-selected {
+  background: #000000; /* black for selected item */
+  color: #ffffff; /* white text when selected */
+}
+.select-list li.select-placeholder { color: rgba(0,0,0,0.45); font-style: italic; }
+.select-list li:hover { background: rgba(0,0,0,0.06); }
 
 .summary {
   margin: 20px 0;

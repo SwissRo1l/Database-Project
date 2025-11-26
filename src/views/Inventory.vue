@@ -7,26 +7,32 @@
         <div class="stats">
           <div class="stat-item">
             <span class="label">总价值</span>
-            <span class="value">12,450 G</span>
+            <span class="value">{{ totalValue.toLocaleString() }} G</span>
           </div>
           <div class="stat-item">
             <span class="label">物品数量</span>
-            <span class="value">24</span>
+            <span class="value">{{ itemCount }}</span>
           </div>
         </div>
       </div>
 
-      <div class="inventory-grid">
-        <div class="item-card" v-for="item in inventoryItems" :key="item.id">
-          <div class="card-image">
-            <img :src="item.img || 'https://via.placeholder.com/150'" alt="Item">
-          </div>
-          <div class="card-info">
-            <h4>{{ item.name }}</h4>
-            <p class="rarity">稀有度: {{ item.rarity || '普通' }}</p>
-            <div class="card-actions">
-              <button class="sell-btn">出售</button>
-              <button class="inspect-btn">查看</button>
+      <div>
+        <div v-if="inventoryItems.length === 0" class="no-inventory" style="padding:40px; color:var(--text-light);">
+          你的背包目前是空的。
+        </div>
+
+        <div v-else class="inventory-grid">
+          <div class="item-card" v-for="item in inventoryItems" :key="item.id">
+            <div class="card-image">
+              <img :src="item.img || 'https://via.placeholder.com/150'" alt="Item">
+            </div>
+            <div class="card-info">
+              <h4>{{ item.name }}</h4>
+              <p class="rarity">稀有度: {{ item.rarity || '普通' }}</p>
+              <div class="card-actions">
+                <button class="sell-btn">出售</button>
+                <button class="inspect-btn">查看</button>
+              </div>
             </div>
           </div>
         </div>
