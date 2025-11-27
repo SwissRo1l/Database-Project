@@ -13,6 +13,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.math.BigDecimal;
 
 @RestController
 @RequestMapping("/api/users")
@@ -32,11 +33,21 @@ public class UserController {
     public Map<String, Object> getProfile(@PathVariable Integer id) {
         Player player = playerRepository.findById(id).orElseThrow(() -> new RuntimeException("User not found"));
         Wallet wallet = walletRepository.findByPlayerId(id);
-        
+        BigDecimal balance = BigDecimal.ZERO;
+        BigDecimal reserved = BigDecimal.ZERO;
+        if (wallet != null) {
+            balance = wallet.getBalance() == null ? BigDecimal.ZERO : wallet.getBalance();
+            reserved = wallet.getReserved() == null ? BigDecimal.ZERO : wallet.getReserved();
+        }
+        // After reservation we move funds out of balance into reserved; balance represents available funds
+        BigDecimal available = balance;
+
         return Map.<String, Object>of(
             "username", player.getPlayerName(),
             "email", player.getEmail() != null ? player.getEmail() : "",
-            "balance", wallet != null ? wallet.getBalance() : BigDecimal.ZERO,
+            "balance", balance,
+            "reserved", reserved,
+            "available", available,
             "uid", player.getPlayerId().toString()
         );
     }

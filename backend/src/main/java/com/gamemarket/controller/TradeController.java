@@ -30,11 +30,43 @@ public class TradeController {
     @Autowired
     private com.gamemarket.service.OrderService orderService;
 
+    @Autowired
+    private com.gamemarket.repository.WalletRepository walletRepository;
+
     @PostMapping("/orders")
-    public Map<String, String> createOrder(@RequestBody Map<String, Object> payload) {
+    public Map<String, Object> createOrder(@RequestBody Map<String, Object> payload) {
         try {
-            orderService.createOrder(payload, 1);
-            return Map.of("message", "Order created successfully");
+            // Determine requester id from payload if provided, otherwise default to 1
+            Integer requesterId = 1;
+            if (payload.containsKey("userId") && payload.get("userId") != null) {
+                Object uidObj = payload.get("userId");
+                if (uidObj instanceof Number) {
+                    requesterId = ((Number) uidObj).intValue();
+                } else {
+                    requesterId = Integer.parseInt(uidObj.toString());
+                }
+            }
+
+            var trades = orderService.createOrder(payload, requesterId);
+
+            // Fetch updated wallet for requester to provide immediate balance feedback
+            var wallet = walletRepository.findByPlayerId(requesterId);
+            java.math.BigDecimal balance = java.math.BigDecimal.ZERO;
+            java.math.BigDecimal reserved = java.math.BigDecimal.ZERO;
+            if (wallet != null) {
+                balance = wallet.getBalance() == null ? java.math.BigDecimal.ZERO : wallet.getBalance();
+                reserved = wallet.getReserved() == null ? java.math.BigDecimal.ZERO : wallet.getReserved();
+            }
+            // After reservation we move funds out of balance into reserved, so 'balance' already represents available funds
+            java.math.BigDecimal available = balance;
+
+            return Map.of(
+                "message", "Order created successfully",
+                "trades", trades,
+                "balance", balance,
+                "reserved", reserved,
+                "available", available
+            );
         } catch (RuntimeException ex) {
             return Map.of("message", "Order creation failed: " + ex.getMessage());
         }

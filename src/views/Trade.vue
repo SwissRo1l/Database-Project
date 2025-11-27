@@ -21,25 +21,12 @@
         <div class="trade-content">
           <div class="form-group">
             <label>选择物品</label>
-            <div class="custom-select" ref="dropdownRef">
-              <button class="select-toggle" @click.stop="toggleDropdown">
-                <span v-if="selectedItemName">{{ selectedItemName }}</span>
-                <span v-else class="placeholder">请选择...</span>
-                <span class="arrow">▾</span>
-              </button>
-
-              <ul v-show="showDropdown" class="select-list" @click.stop>
-                <li class="select-placeholder" @click="clearSelection">
-                  请选择...
-                </li>
-                <li v-for="item in items" :key="item.id"
-                    :class="{ 'is-selected': item.id === selectedItem }
-                    "
-                    @click="selectItem(item.id)">
-                  {{ item.name }}
-                </li>
-              </ul>
-            </div>
+            <select v-model="selectedItem">
+              <option value="" disabled>请选择...</option>
+              <option v-for="item in items" :key="item.id" :value="item.id">
+                {{ item.name }}
+              </option>
+            </select>
           </div>
 
           <div class="form-group">
@@ -86,12 +73,14 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch, nextTick, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import NavBar from '../components/NavBar.vue'
 import PriceChart from '../components/PriceChart.vue'
 import { fetchListings } from '../api/market'
 import { createOrder } from '../api/trade'
+import { fetchProfile } from '../api/user'
+import { useUserStore } from '../store/user'
 
 const route = useRoute()
 const activeTab = ref('buy')
@@ -130,43 +119,6 @@ const fetchMarketOrders = async () => {
 
 watch(selectedItem, () => {
   fetchMarketOrders()
-})
-
-// Custom dropdown state & helpers
-const showDropdown = ref(false)
-const dropdownRef = ref(null)
-const selectedItemName = computed(() => {
-  const itm = items.value.find(i => i.id === selectedItem.value)
-  return itm ? itm.name : ''
-})
-
-const toggleDropdown = () => {
-  showDropdown.value = !showDropdown.value
-}
-
-const selectItem = (id) => {
-  selectedItem.value = id
-  showDropdown.value = false
-}
-
-const clearSelection = () => {
-  selectedItem.value = ''
-  showDropdown.value = false
-}
-
-const handleDocClick = (e) => {
-  if (!dropdownRef.value) return
-  if (!dropdownRef.value.contains(e.target)) {
-    showDropdown.value = false
-  }
-}
-
-onMounted(() => {
-  document.addEventListener('click', handleDocClick)
-})
-
-onBeforeUnmount(() => {
-  document.removeEventListener('click', handleDocClick)
 })
 
 onMounted(async () => {
@@ -212,13 +164,54 @@ const executeTrade = async () => {
   }
 
   try {
-    await createOrder({
+    const userStore = useUserStore()
+    const playerId = Number(userStore.uid) || Number(localStorage.getItem('userId'))
+    if (!playerId) {
+      alert('请先登录')
+      return
+    }
+
+    const payload = {
       itemId: selectedItem.value,
       price: Number(price.value),
       amount: Number(amount.value),
-      type: activeTab.value
-    })
-    alert(`${activeTab.value === 'buy' ? '购买' : '出售'} 订单已提交`)
+      type: activeTab.value,
+      userId: playerId
+    }
+
+    // prevent duplicate submissions
+    if (executeTrade._pending) return
+    executeTrade._pending = true
+    const res = await createOrder(payload)
+    executeTrade._pending = false
+    console.log('createOrder response:', res)
+    // Update user's balance immediately if backend returned wallet info
+    try {
+      const userStore = useUserStore()
+      if (res && (res.balance !== undefined || res.available !== undefined)) {
+        const balRaw = res.balance !== undefined ? res.balance : res.available
+        const reservedRaw = res.reserved !== undefined ? res.reserved : 0
+        const balNum = Number(balRaw)
+        const reservedNum = Number(reservedRaw)
+        console.log('Updating userStore balance:', { balNum, reservedNum })
+        userStore.setBalance(balNum, reservedNum)
+      } else {
+        // Fallback: refresh profile from backend
+        const playerId = Number(userStore.uid) || Number(localStorage.getItem('userId'))
+        if (playerId) {
+          const profile = await fetchProfile(playerId)
+          if (profile) userStore.setUser(profile)
+        }
+      }
+    } catch (err) {
+      console.error('Profile refresh/update failed', err)
+    }
+    if (res && res.trades && res.trades.length > 0) {
+      const info = res.trades.map(t => `${t.quantity} x ${t.asset.assetName || t.asset.assetName} @ ${t.price}`).join('\n')
+      alert(`${activeTab.value === 'buy' ? '购买' : '出售'} 成交:\n` + info)
+    } else {
+      alert(`${activeTab.value === 'buy' ? '购买' : '出售'} 订单已提交`)
+    }
   } catch (error) {
     console.error(error)
     alert('交易失败: ' + (error.message || '未知错误'))
@@ -289,66 +282,6 @@ const executeTrade = async () => {
   border-radius: 6px;
   color: var(--text);
 }
-
-/* Make dropdown options readable and style the selected option */
-.form-group select option {
-  color: var(--text);
-  background: var(--panel);
-}
-
-/* When option is selected in the native dropdown, give it a darker background */
-.form-group select option:checked {
-  background: rgba(0,0,0,0.6);
-  color: var(--text-light);
-}
-
-/* Hover state in dropdown (may be honored by some browsers) */
-.form-group select option:hover {
-  background: rgba(255,255,255,0.03);
-}
-
-/* Custom select styles */
-.custom-select {
-  position: relative;
-}
-.select-toggle {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  padding: 12px;
-  background: rgba(0,0,0,0.2); /* restore original dark background */
-  border: 1px solid rgba(255,255,255,0.1); /* original border */
-  border-radius: 6px;
-  color: var(--text);
-  cursor: pointer;
-}
-.select-toggle .placeholder { color: rgba(255,255,255,0.4); }
-.select-toggle .arrow { color: rgba(255,255,255,0.6); }
-.select-list {
-  position: absolute;
-  left: 0;
-  right: 0;
-  max-height: 320px;
-  overflow: auto;
-  background: #ffffff; /* white dropdown background */
-  border: 1px solid rgba(0,0,0,0.08);
-  margin-top: 8px;
-  border-radius: 6px;
-  z-index: 50;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.25);
-}
-.select-list li {
-  padding: 12px;
-  color: #111; /* dark text for items */
-  cursor: pointer;
-}
-.select-list li.is-selected {
-  background: #000000; /* black for selected item */
-  color: #ffffff; /* white text when selected */
-}
-.select-list li.select-placeholder { color: rgba(0,0,0,0.45); font-style: italic; }
-.select-list li:hover { background: rgba(0,0,0,0.06); }
 
 .summary {
   margin: 20px 0;

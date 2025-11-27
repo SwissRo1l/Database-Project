@@ -7,16 +7,16 @@
           <img src="https://via.placeholder.com/100" alt="Avatar">
         </div>
         <div class="user-info">
-          <h2>{{ user.username }}<span class="uid-tag">#{{ user.uid }}</span></h2>
+          <h2>{{ userStore.name }}<span class="uid-tag">#{{ userStore.uid }}</span></h2>
           <div class="tags">
-            <span class="tag vip">VIP {{ Math.floor(user.balance / 10000) }}</span>
+            <span class="tag vip">VIP {{ Math.floor(userStore.available / 10000) }}</span>
             <span class="tag verified">已认证</span>
           </div>
         </div>
         <div class="balance-card">
           <p class="label">账户余额</p>
-          <p class="amount">{{ user.balance.toLocaleString() }} G</p>
-          <button class="deposit-btn">充值</button>
+          <p class="amount">{{ userStore.available.toLocaleString() }} G</p>
+          <button class="deposit-btn" @click="deposit">充值</button>
         </div>
       </div>
 
@@ -44,13 +44,13 @@
           <div class="setting-item">
             <label>用户名</label>
             <div class="input-group">
-              <input type="text" v-model="editName" :placeholder="user.username">
+              <input type="text" v-model="editName" :placeholder="userStore.name">
               <button class="btn-small" @click="updateName">修改</button>
             </div>
           </div>
           <div class="setting-item">
             <label>邮箱</label>
-            <input type="email" :value="user.email" disabled>
+            <input type="email" :value="userStore.email" disabled>
           </div>
           <div class="setting-item">
             <label>密码</label>
@@ -69,14 +69,11 @@ import { useRouter } from 'vue-router'
 import NavBar from '../components/NavBar.vue'
 import { fetchProfile, updateProfile } from '../api/user'
 import { fetchOrders } from '../api/trade'
+import { recharge } from '../api/wallet'
+import { useUserStore } from '../store/user'
 
 const router = useRouter()
-const user = ref({
-  username: 'PlayerOne',
-  email: 'player@example.com',
-  balance: 0,
-  uid: '0'
-})
+const userStore = useUserStore()
 const history = ref([])
 const editName = ref('')
 
@@ -91,8 +88,8 @@ onMounted(async () => {
     // Fetch Profile
     const profileRes = await fetchProfile(userId)
     if (profileRes) {
-      user.value = { ...user.value, ...profileRes }
-      editName.value = user.value.username
+      userStore.setUser(profileRes)
+      editName.value = userStore.name
     }
 
     // Fetch History
@@ -104,11 +101,11 @@ onMounted(async () => {
 })
 
 const updateName = async () => {
-  if (!editName.value || editName.value === user.value.username) return
+  if (!editName.value || editName.value === userStore.name) return
   
   try {
-    await updateProfile(user.value.uid, { username: editName.value })
-    user.value.username = editName.value
+    await updateProfile(userStore.uid, { username: editName.value })
+    userStore.name = editName.value
     localStorage.setItem('username', editName.value)
     alert('用户名修改成功')
   } catch (e) {
@@ -120,6 +117,38 @@ const updateName = async () => {
 const logout = () => {
   localStorage.clear()
   router.push('/login')
+}
+
+const deposit = async () => {
+  // Ask user for an amount to recharge
+  const input = window.prompt('请输入充值金额（单位 G）:')
+  if (!input) return
+  const value = Number(input)
+  if (Number.isNaN(value) || value <= 0) {
+    alert('请输入有效的正数金额')
+    return
+  }
+
+  try {
+    const playerId = Number(userStore.uid) || Number(localStorage.getItem('userId'))
+    if (!playerId) {
+      alert('未找到用户 ID，请重新登录')
+      return
+    }
+
+    const res = await recharge(playerId, { amount: value })
+    if (res) {
+      // Refresh profile to get updated reserved/available fields
+      const profileRes = await fetchProfile(playerId)
+      if (profileRes) {
+        userStore.setUser(profileRes)
+      }
+      alert(res.message || '充值成功')
+    }
+  } catch (e) {
+    console.error(e)
+    alert('充值失败，请稍后重试')
+  }
 }
 </script>
 

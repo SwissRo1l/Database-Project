@@ -9,9 +9,26 @@
       <router-link to="/profile">我的账户</router-link>
     </div>
 
-    <input type="text" class="search" placeholder="搜索装备...">
+    <div class="nav-right">
+      <div class="balance">余额: <span class="bal-amount">{{ formattedBalance }} G</span></div>
+      <input type="text" class="search" placeholder="搜索装备...">
+    </div>
   </nav>
 </template>
+
+<script setup>
+import { computed } from 'vue'
+import { useUserStore } from '../store/user'
+
+const userStore = useUserStore()
+const formattedBalance = computed(() => {
+  try {
+    return (Number(userStore.available) || 0).toLocaleString()
+  } catch (e) {
+    return '0'
+  }
+})
+</script>
 
 <style scoped>
 .navbar {
@@ -47,4 +64,15 @@
   border-radius: 6px;
   color: var(--text);
 }
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.balance {
+  color: var(--text);
+  font-weight: bold;
+}
+.bal-amount { color: var(--primary); }
 </style>
