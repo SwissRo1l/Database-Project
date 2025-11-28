@@ -69,4 +69,24 @@ public class WalletService {
         }
         return walletRepository.save(w);
     }
+
+    @Transactional
+    public void deductFunds(Integer playerId, BigDecimal amount) {
+        Wallet w = walletRepository.findByPlayerId(playerId);
+        if (w == null) {
+            throw new RuntimeException("Wallet not found");
+        }
+        BigDecimal reserved = w.getReserved() == null ? BigDecimal.ZERO : w.getReserved();
+        BigDecimal available = w.getBalance().subtract(reserved);
+        if (available.compareTo(amount) < 0) {
+            throw new RuntimeException("Insufficient funds");
+        }
+        w.setBalance(w.getBalance().subtract(amount));
+        walletRepository.save(w);
+    }
+
+    @Transactional
+    public void addFunds(Integer playerId, BigDecimal amount) {
+        recharge(playerId, amount);
+    }
 }

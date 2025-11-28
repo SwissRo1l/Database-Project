@@ -4,10 +4,12 @@ import com.gamemarket.entity.Asset;
 import com.gamemarket.entity.Player;
 import com.gamemarket.entity.Wallet;
 import com.gamemarket.entity.MarketOrder;
+import com.gamemarket.entity.PlayerAsset;
 import com.gamemarket.repository.AssetRepository;
 import com.gamemarket.repository.MarketOrderRepository;
 import com.gamemarket.repository.PlayerRepository;
 import com.gamemarket.repository.WalletRepository;
+import com.gamemarket.repository.PlayerAssetRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
@@ -22,13 +24,15 @@ public class DataLoader implements CommandLineRunner {
     private final AssetRepository assetRepository;
     private final WalletRepository walletRepository;
     private final MarketOrderRepository marketOrderRepository;
+    private final PlayerAssetRepository playerAssetRepository;
     private final Random random = new Random();
 
-    public DataLoader(PlayerRepository playerRepository, AssetRepository assetRepository, WalletRepository walletRepository, MarketOrderRepository marketOrderRepository) {
+    public DataLoader(PlayerRepository playerRepository, AssetRepository assetRepository, WalletRepository walletRepository, MarketOrderRepository marketOrderRepository, PlayerAssetRepository playerAssetRepository) {
         this.playerRepository = playerRepository;
         this.assetRepository = assetRepository;
         this.walletRepository = walletRepository;
         this.marketOrderRepository = marketOrderRepository;
+        this.playerAssetRepository = playerAssetRepository;
     }
 
     @Override
@@ -37,6 +41,39 @@ public class DataLoader implements CommandLineRunner {
             System.out.println("Seeding database with initial data...");
             seedData();
             System.out.println("Database seeding completed.");
+        }
+        fixInconsistencies();
+    }
+
+    private void fixInconsistencies() {
+        System.out.println("Checking for data inconsistencies...");
+        List<MarketOrder> orders = marketOrderRepository.findByStatus("OPEN");
+        int fixedCount = 0;
+        for (MarketOrder order : orders) {
+            if ("SELL".equals(order.getOrderType())) {
+                PlayerAsset pa = playerAssetRepository.findByPlayerIdAndAsset_AssetId(order.getPlayerId(), order.getAsset().getAssetId());
+                if (pa == null) {
+                    pa = new PlayerAsset();
+                    pa.setPlayerId(order.getPlayerId());
+                    pa.setAsset(order.getAsset());
+                    pa.setQuantity(order.getQuantity() + 10); // Give them enough + extra
+                    pa.setReservedQuantity(order.getQuantity());
+                    pa.setPurchaseDate(java.time.LocalDateTime.now());
+                    playerAssetRepository.save(pa);
+                    fixedCount++;
+                } else {
+                    // Ensure reserved quantity covers the order
+                    int reserved = pa.getReservedQuantity() == null ? 0 : pa.getReservedQuantity();
+                    if (reserved < order.getQuantity()) {
+                        pa.setReservedQuantity(reserved + order.getQuantity());
+                        playerAssetRepository.save(pa);
+                        fixedCount++;
+                    }
+                }
+            }
+        }
+        if (fixedCount > 0) {
+            System.out.println("Fixed " + fixedCount + " inconsistent orders.");
         }
     }
 
@@ -80,6 +117,15 @@ public class DataLoader implements CommandLineRunner {
             // Price variation around base price
             BigDecimal price = asset.getBasePrice().multiply(new BigDecimal(0.8 + (random.nextDouble() * 0.4))); // +/- 20%
             
+            // Ensure player has the asset before selling
+            PlayerAsset pa = new PlayerAsset();
+            pa.setPlayerId(seller.getPlayerId());
+            pa.setAsset(asset);
+            pa.setQuantity(10); // Give them 10
+            pa.setReservedQuantity(1); // Reserve 1 for the order
+            pa.setPurchaseDate(java.time.LocalDateTime.now());
+            playerAssetRepository.save(pa);
+
             createOrder(seller.getPlayerId(), asset, "SELL", price, 1);
         }
     }

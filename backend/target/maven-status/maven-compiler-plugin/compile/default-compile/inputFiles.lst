@@ -3,8 +3,10 @@
 /workspaces/Database-Project/backend/src/main/java/com/gamemarket/controller/AuthController.java
 /workspaces/Database-Project/backend/src/main/java/com/gamemarket/controller/ItemController.java
 /workspaces/Database-Project/backend/src/main/java/com/gamemarket/controller/MarketController.java
+/workspaces/Database-Project/backend/src/main/java/com/gamemarket/controller/RechargeRequest.java
 /workspaces/Database-Project/backend/src/main/java/com/gamemarket/controller/TradeController.java
 /workspaces/Database-Project/backend/src/main/java/com/gamemarket/controller/UserController.java
+/workspaces/Database-Project/backend/src/main/java/com/gamemarket/controller/WalletController.java
 /workspaces/Database-Project/backend/src/main/java/com/gamemarket/entity/Asset.java
 /workspaces/Database-Project/backend/src/main/java/com/gamemarket/entity/MarketOrder.java
 /workspaces/Database-Project/backend/src/main/java/com/gamemarket/entity/Player.java
@@ -17,3 +19,5 @@
 /workspaces/Database-Project/backend/src/main/java/com/gamemarket/repository/PlayerRepository.java
 /workspaces/Database-Project/backend/src/main/java/com/gamemarket/repository/TradeHistoryRepository.java
 /workspaces/Database-Project/backend/src/main/java/com/gamemarket/repository/WalletRepository.java
+/workspaces/Database-Project/backend/src/main/java/com/gamemarket/service/OrderService.java
+/workspaces/Database-Project/backend/src/main/java/com/gamemarket/service/WalletService.java

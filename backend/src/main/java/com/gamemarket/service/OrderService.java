@@ -1,11 +1,7 @@
 package com.gamemarket.service;
 
-import com.gamemarket.entity.Asset;
-import com.gamemarket.entity.MarketOrder;
-import com.gamemarket.entity.PlayerAsset;
-import com.gamemarket.repository.AssetRepository;
-import com.gamemarket.repository.MarketOrderRepository;
-import com.gamemarket.repository.PlayerAssetRepository;
+import com.gamemarket.entity.*;
+import com.gamemarket.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +23,9 @@ public class OrderService {
 
     @Autowired
     private PlayerAssetRepository playerAssetRepository;
+
+    @Autowired
+    private TradeHistoryRepository tradeHistoryRepository;
 
     @Transactional
     public void createOrder(Map<String, Object> payload, Integer requesterId) {
@@ -98,5 +97,111 @@ public class OrderService {
 
         order.setStatus("CANCELLED");
         orderRepository.save(order);
+    }
+
+    @Transactional
+    public void executeTrade(Integer orderId, Integer executorId, Integer quantity) {
+        MarketOrder order = orderRepository.findById(orderId)
+            .orElseThrow(() -> new RuntimeException("Order not found"));
+        
+        if (order.getPlayerId().equals(executorId)) {
+            throw new RuntimeException("Cannot trade with yourself");
+        }
+        if (!"OPEN".equals(order.getStatus())) {
+            throw new RuntimeException("Order is not open");
+        }
+        if (order.getQuantity() < quantity) {
+            throw new RuntimeException("Not enough quantity in order");
+        }
+
+        BigDecimal totalPrice = order.getPrice().multiply(BigDecimal.valueOf(quantity));
+        Integer assetId = order.getAsset().getAssetId();
+
+        MarketOrder counterOrder = new MarketOrder();
+        counterOrder.setPlayerId(executorId);
+        counterOrder.setAsset(order.getAsset());
+        counterOrder.setPrice(order.getPrice());
+        counterOrder.setQuantity(quantity);
+        counterOrder.setStatus("FILLED");
+        counterOrder.setCreateTime(java.time.LocalDateTime.now());
+
+        if ("SELL".equals(order.getOrderType())) {
+            // Executor is BUYING
+            counterOrder.setOrderType("BUY");
+            
+            walletService.deductFunds(executorId, totalPrice);
+            walletService.addFunds(order.getPlayerId(), totalPrice);
+            
+            PlayerAsset sellerAsset = playerAssetRepository.findByPlayerIdAndAsset_AssetId(order.getPlayerId(), assetId);
+            if (sellerAsset == null) {
+                throw new RuntimeException("Seller asset not found (Data inconsistency)");
+            }
+            int reserved = sellerAsset.getReservedQuantity() == null ? 0 : sellerAsset.getReservedQuantity();
+            sellerAsset.setReservedQuantity(Math.max(0, reserved - quantity));
+            sellerAsset.setQuantity(sellerAsset.getQuantity() - quantity);
+            playerAssetRepository.save(sellerAsset);
+            
+            PlayerAsset executorAsset = playerAssetRepository.findByPlayerIdAndAsset_AssetId(executorId, assetId);
+            if (executorAsset == null) {
+                executorAsset = new PlayerAsset();
+                executorAsset.setPlayerId(executorId);
+                executorAsset.setAsset(order.getAsset());
+                executorAsset.setQuantity(0);
+                executorAsset.setReservedQuantity(0);
+            }
+            executorAsset.setQuantity(executorAsset.getQuantity() + quantity);
+            executorAsset.setPurchaseDate(java.time.LocalDateTime.now());
+            playerAssetRepository.save(executorAsset);
+
+        } else {
+            // Executor is SELLING
+            counterOrder.setOrderType("SELL");
+
+            PlayerAsset executorAsset = playerAssetRepository.findByPlayerIdAndAsset_AssetId(executorId, assetId);
+            int available = (executorAsset == null ? 0 : executorAsset.getQuantity()) - (executorAsset == null ? 0 : executorAsset.getReservedQuantity());
+            if (available < quantity) {
+                throw new RuntimeException("Insufficient items to sell");
+            }
+            
+            executorAsset.setQuantity(executorAsset.getQuantity() - quantity);
+            playerAssetRepository.save(executorAsset);
+            
+            PlayerAsset buyerAsset = playerAssetRepository.findByPlayerIdAndAsset_AssetId(order.getPlayerId(), assetId);
+            if (buyerAsset == null) {
+                buyerAsset = new PlayerAsset();
+                buyerAsset.setPlayerId(order.getPlayerId());
+                buyerAsset.setAsset(order.getAsset());
+                buyerAsset.setQuantity(0);
+                buyerAsset.setReservedQuantity(0);
+            }
+            buyerAsset.setQuantity(buyerAsset.getQuantity() + quantity);
+            buyerAsset.setPurchaseDate(java.time.LocalDateTime.now());
+            playerAssetRepository.save(buyerAsset);
+            
+            walletService.commitReserved(order.getPlayerId(), totalPrice);
+            walletService.addFunds(executorId, totalPrice);
+        }
+
+        orderRepository.save(counterOrder);
+
+        order.setQuantity(order.getQuantity() - quantity);
+        if (order.getQuantity() == 0) {
+            order.setStatus("FILLED");
+        }
+        orderRepository.save(order);
+
+        TradeHistory history = new TradeHistory();
+        history.setAsset(order.getAsset());
+        history.setPrice(order.getPrice());
+        history.setQuantity(quantity);
+        history.setTradeTime(java.time.LocalDateTime.now());
+        if ("SELL".equals(order.getOrderType())) {
+            history.setSellOrderId(order.getOrderId());
+            history.setBuyOrderId(counterOrder.getOrderId());
+        } else {
+            history.setBuyOrderId(order.getOrderId());
+            history.setSellOrderId(counterOrder.getOrderId());
+        }
+        tradeHistoryRepository.save(history);
     }
 }

@@ -6,12 +6,12 @@
         <h2>我的库存</h2>
         <div class="stats">
           <div class="stat-item">
-            <span class="label">总价值</span>
-            <span class="value">12,450 G</span>
+            <span class="label">总价值 (估算)</span>
+            <span class="value">{{ totalValue }} G</span>
           </div>
           <div class="stat-item">
             <span class="label">物品数量</span>
-            <span class="value">24</span>
+            <span class="value">{{ itemCount }}</span>
           </div>
         </div>
       </div>
@@ -24,6 +24,22 @@
           <div class="card-info">
             <h4>{{ item.name }}</h4>
             <p class="rarity">稀有度: {{ item.rarity || '普通' }}</p>
+            
+            <div class="item-details">
+              <div class="detail-row">
+                <span class="label">购买日期:</span>
+                <span class="val">{{ formatDate(item.purchaseDate) }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="label">市场最低价:</span>
+                <span class="val price">{{ item.price }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="label">拥有数量:</span>
+                <span class="val">{{ item.quantity }}</span>
+              </div>
+            </div>
+
             <div class="card-actions">
               <button class="sell-btn">出售</button>
               <button class="inspect-btn">查看</button>
@@ -44,27 +60,34 @@ const inventoryItems = ref([])
 const totalValue = ref(0)
 const itemCount = ref(0)
 
-onMounted(async () => {
+const formatDate = (dateStr) => {
+  if (!dateStr || dateStr === '未知') return '未知'
   try {
-    // Assuming user ID 1 for now
-    const res = await fetchInventory(1)
+    return new Date(dateStr).toLocaleDateString()
+  } catch (e) {
+    return dateStr
+  }
+}
+
+onMounted(async () => {
+  const userId = localStorage.getItem('userId')
+  if (!userId) {
+    alert('请先登录')
+    return
+  }
+
+  try {
+    const res = await fetchInventory(userId)
     inventoryItems.value = res || []
     
     // Calculate stats
-    itemCount.value = inventoryItems.value.length
-    totalValue.value = inventoryItems.value.reduce((sum, item) => sum + (item.price || 0), 0)
+    itemCount.value = inventoryItems.value.reduce((sum, item) => sum + (item.quantity || 1), 0)
+    totalValue.value = inventoryItems.value.reduce((sum, item) => {
+      const price = typeof item.price === 'number' ? item.price : 0
+      return sum + (price * (item.quantity || 1))
+    }, 0)
   } catch (e) {
     console.error(e)
-    // Fallback mock
-    inventoryItems.value = Array.from({ length: 12 }, (_, i) => ({
-      id: i,
-      name: `神秘物品 #${i + 1}`,
-      rarity: '传说',
-      img: 'https://via.placeholder.com/150',
-      price: 1000
-    }))
-    itemCount.value = 12
-    totalValue.value = 12000
   }
 })
 </script>
@@ -107,7 +130,7 @@ onMounted(async () => {
 
 .inventory-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 20px;
 }
 
@@ -140,7 +163,23 @@ onMounted(async () => {
 .rarity {
   font-size: 12px;
   color: #ffd700; /* Gold for legendary */
+  margin-bottom: 10px;
+}
+
+.item-details {
   margin-bottom: 15px;
+  font-size: 12px;
+  color: var(--text-light);
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.detail-row .price {
+  color: #4dff4d;
 }
 
 .card-actions {

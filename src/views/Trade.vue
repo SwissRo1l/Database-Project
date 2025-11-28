@@ -2,284 +2,726 @@
   <div class="page trade">
     <NavBar />
     <div class="container">
-      <div class="trade-panel">
-        <div class="tabs">
-          <button 
-            :class="{ active: activeTab === 'buy' }" 
-            @click="activeTab = 'buy'"
-          >
-            购买
-          </button>
-          <button 
-            :class="{ active: activeTab === 'sell' }" 
-            @click="activeTab = 'sell'"
-          >
-            出售
-          </button>
+      
+      <!-- Top Bar: Item Selection -->
+      <div class="top-bar">
+        <div class="item-selector">
+          <label>当前交易物品:</label>
+          <select v-model="selectedItem" @change="handleItemChange">
+            <option value="" disabled>请选择物品...</option>
+            <option v-for="item in items" :key="item.id" :value="item.id">
+              {{ item.name }}
+            </option>
+          </select>
         </div>
-
-        <div class="trade-content">
-          <div class="form-group">
-            <label>选择物品</label>
-            <select v-model="selectedItem">
-              <option value="" disabled>请选择...</option>
-              <option v-for="item in items" :key="item.id" :value="item.id">
-                {{ item.name }}
-              </option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label>价格 (G)</label>
-            <input type="number" v-model="price" placeholder="0.00">
-          </div>
-
-          <div class="form-group">
-            <label>数量</label>
-            <input type="number" v-model="amount" placeholder="1">
-          </div>
-
-          <div class="summary">
-            <p>总计: <span>{{ total }} G</span></p>
-          </div>
-
-          <button class="button-primary full-width" @click="executeTrade">
-            {{ activeTab === 'buy' ? '确认购买' : '确认出售' }}
-          </button>
+        <div class="user-balance" v-if="userBalance !== null">
+          余额: <span>{{ userBalance }} G</span>
         </div>
       </div>
 
-      <div class="order-book">
-        <PriceChart v-if="selectedItem" :base-price="currentPrice" class="mb-4" />
-        <h3>市场挂单</h3>
-        <div class="book-header">
-          <span>价格</span>
-          <span>数量</span>
-          <span>时间</span>
-        </div>
-        <div class="book-list">
-          <div class="book-item" v-for="order in marketOrders" :key="order.id">
-            <span class="text-up">{{ order.price.toFixed(2) }}</span>
-            <span>1</span>
-            <span class="time">刚刚</span>
+      <div class="trade-layout" v-if="selectedItem">
+        
+        <!-- Left: Order Book (Vertical Stack) -->
+        <div class="trade-panel order-book-panel">
+          <h3>🏛️ 盘口 (Order Book)</h3>
+          
+          <div class="order-book-vertical">
+            <div class="order-row header">
+              <span>价格 (Price)</span>
+              <span>数量 (Qty)</span>
+              <span>操作</span>
+            </div>
+
+            <!-- Sell Orders (Red) - Reversed so lowest price is at bottom -->
+            <div class="order-list sells">
+              <div v-for="order in sellOrdersReversed" :key="order.orderId" class="order-row item sell">
+                <span class="price">{{ order.price }}</span>
+                <span class="qty">{{ order.quantity }}</span>
+                <button class="btn-action btn-buy-mini" @click="handleTrade(order)">买入</button>
+              </div>
+              <div v-if="sellOrders.length === 0" class="empty">暂无卖单</div>
+            </div>
+
+            <!-- Current Price / Spread -->
+            <div class="spread-bar">
+              <span class="current-price">{{ currentPrice || '---' }}</span>
+              <span class="spread-label">最新成交价</span>
+            </div>
+
+            <!-- Buy Orders (Green) - Highest price at top -->
+            <div class="order-list buys">
+              <div v-for="order in buyOrders" :key="order.orderId" class="order-row item buy">
+                <span class="price">{{ order.price }}</span>
+                <span class="qty">{{ order.quantity }}</span>
+                <button class="btn-action btn-sell-mini" @click="handleTrade(order)">卖出</button>
+              </div>
+              <div v-if="buyOrders.length === 0" class="empty">暂无买单</div>
+            </div>
           </div>
-          <div v-if="marketOrders.length === 0" class="no-data">
-            暂无挂单
+        </div>
+
+        <!-- Center: Chart & History -->
+        <div class="trade-panel chart-panel">
+          <h3>📈 价格走势</h3>
+          <div class="chart-container" ref="chartRef"></div>
+          
+          <div class="recent-trades">
+             <h4>最新成交</h4>
+             <div class="trade-history-list">
+               <div class="trade-row header">
+                 <span>时间</span>
+                 <span>价格</span>
+                 <span>数量</span>
+               </div>
+               <div v-for="trade in recentTrades" :key="trade.time" class="trade-row">
+                 <span>{{ formatTime(trade.time) }}</span>
+                 <span :class="trade.price >= (trade.prevPrice || trade.price) ? 'green' : 'red'">{{ trade.price }}</span>
+                 <span>{{ trade.quantity }}</span>
+               </div>
+               <div v-if="recentTrades.length === 0" class="empty-history">暂无成交记录</div>
+             </div>
           </div>
         </div>
+
+        <!-- Right: Place Limit Order -->
+        <div class="trade-panel place-order-panel">
+          <h3>📝 下单交易</h3>
+          <div class="tabs">
+            <button :class="{ active: activeTab === 'buy', 'tab-buy': true }" @click="activeTab = 'buy'">买入 (Buy)</button>
+            <button :class="{ active: activeTab === 'sell', 'tab-sell': true }" @click="activeTab = 'sell'">卖出 (Sell)</button>
+          </div>
+
+          <div class="order-form">
+            <div class="form-group">
+              <label>价格 (Price)</label>
+              <div class="input-wrapper">
+                <input type="number" v-model="formPrice" placeholder="0.00">
+                <span class="suffix">G</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>数量 (Amount)</label>
+              <div class="input-wrapper">
+                <input type="number" v-model="formAmount" placeholder="0">
+                <span class="suffix">个</span>
+              </div>
+            </div>
+            
+            <div class="slider-group">
+              <!-- Mock slider -->
+              <input type="range" min="0" max="100" value="0" class="slider">
+            </div>
+
+            <div class="summary">
+              <div class="row">
+                <span>可用余额:</span>
+                <span>{{ userBalance }} G</span>
+              </div>
+              <div class="row total">
+                <span>交易总额:</span>
+                <span>{{ (formPrice * formAmount).toFixed(2) }} G</span>
+              </div>
+            </div>
+
+            <button 
+              class="button-primary full-width" 
+              :class="activeTab === 'buy' ? 'btn-buy-main' : 'btn-sell-main'"
+              @click="executeCreateOrder"
+            >
+              {{ activeTab === 'buy' ? '买入 (Buy)' : '卖出 (Sell)' }}
+            </button>
+          </div>
+        </div>
+
       </div>
+
+      <div v-else class="select-prompt">
+        <p>请先在上方选择一个物品开始交易</p>
+      </div>
+
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, onMounted, computed, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import NavBar from '../components/NavBar.vue'
-import PriceChart from '../components/PriceChart.vue'
-import { fetchListings } from '../api/market'
+import { fetchListings, executeTrade, fetchTradeHistory } from '../api/market'
 import { createOrder } from '../api/trade'
+import { fetchProfile } from '../api/user'
+import { searchItems } from '../api/item'
+import * as echarts from 'echarts'
 
 const route = useRoute()
-const activeTab = ref('buy')
 const selectedItem = ref('')
-const price = ref('')
-const amount = ref(1)
 const items = ref([])
-const marketOrders = ref([])
-const currentPrice = ref(1000)
+const activeTab = ref('buy')
 
-const fetchMarketOrders = async () => {
-  if (!selectedItem.value) return
+const sellOrders = ref([])
+const buyOrders = ref([])
+const userBalance = ref(null)
+const currentPrice = ref(null)
+const recentTrades = ref([])
+
+const formPrice = ref('')
+const formAmount = ref(1)
+const chartRef = ref(null)
+let chartInstance = null
+
+// Computed property to reverse sell orders for display (Lowest price at bottom)
+const sellOrdersReversed = computed(() => {
+  return [...sellOrders.value].reverse()
+})
+
+// Load initial data
+onMounted(async () => {
+  await loadItems()
+  await loadUserBalance()
   
+  if (route.query.itemId) {
+    selectedItem.value = Number(route.query.itemId)
+    handleItemChange()
+  }
+  
+  window.addEventListener('resize', () => {
+    chartInstance && chartInstance.resize()
+  })
+})
+
+const loadItems = async () => {
   try {
-    const res = await fetchListings({ itemId: selectedItem.value, limit: 20 })
-    marketOrders.value = res || []
-    
-    // Update current price based on the lowest sell order or item base price
-    if (marketOrders.value.length > 0) {
-      // Assuming listings are sorted by price ascending (cheapest first)
-      // If not, we should sort them or pick the first one
-      currentPrice.value = marketOrders.value[0].price
-      price.value = currentPrice.value // Auto-fill price
-    } else {
-      // Fallback to item base price if available in items list
-      const item = items.value.find(i => i.id === selectedItem.value)
-      if (item) {
-        currentPrice.value = item.price
-        price.value = item.price
-      }
-    }
+    const res = await searchItems('')
+    items.value = res.map(item => ({
+      id: item.assetId,
+      name: item.assetName
+    }))
   } catch (e) {
-    console.error('Failed to fetch market orders:', e)
+    console.error(e)
   }
 }
 
-watch(selectedItem, () => {
-  fetchMarketOrders()
-})
-
-onMounted(async () => {
-  // Load items for dropdown
-  try {
-    const res = await fetchListings({ limit: 100 })
-    // Deduplicate items by ID
-    const uniqueItems = []
-    const seenIds = new Set()
-    for (const item of res) {
-      if (!seenIds.has(item.id)) {
-        seenIds.add(item.id)
-        uniqueItems.push(item)
-      }
+const loadUserBalance = async () => {
+  const userId = localStorage.getItem('userId')
+  if (userId) {
+    try {
+      const res = await fetchProfile(userId)
+      userBalance.value = res.balance
+    } catch (e) {
+      console.error(e)
     }
-    items.value = uniqueItems
+  }
+}
+
+const handleItemChange = async () => {
+  if (!selectedItem.value) return
+  
+  try {
+    const res = await fetchListings({ itemId: selectedItem.value, limit: 100 })
+    const allOrders = res || []
+    
+    // Split orders
+    // Sells: Sort ASC (Lowest price first)
+    sellOrders.value = allOrders.filter(o => o.type === 'SELL').sort((a, b) => a.price - b.price)
+    // Buys: Sort DESC (Highest price first)
+    buyOrders.value = allOrders.filter(o => o.type === 'BUY').sort((a, b) => b.price - a.price)
+    
+    // Determine current price (mid price or last trade)
+    if (sellOrders.value.length > 0 && buyOrders.value.length > 0) {
+      currentPrice.value = ((sellOrders.value[0].price + buyOrders.value[0].price) / 2).toFixed(2)
+    } else if (sellOrders.value.length > 0) {
+      currentPrice.value = sellOrders.value[0].price
+    } else if (buyOrders.value.length > 0) {
+      currentPrice.value = buyOrders.value[0].price
+    } else {
+      currentPrice.value = '---'
+    }
+
+    // Auto-fill price
+    if (currentPrice.value !== '---') {
+      formPrice.value = currentPrice.value
+    }
+
+    // Load History and Chart
+    await loadHistoryAndRenderChart()
+
   } catch (e) {
     console.error(e)
-    items.value = [
-      { id: 1, name: 'AK47 | 火蛇', price: 45600 },
-      { id: 2, name: 'M4A4 | 咆哮', price: 120000 },
-      { id: 3, name: 'AWP | 巨龙传说', price: 850000 }
+  }
+}
+
+const loadHistoryAndRenderChart = async () => {
+  try {
+    const history = await fetchTradeHistory(selectedItem.value)
+    recentTrades.value = history.reverse().slice(0, 20) // Show last 20 trades in list
+    
+    // Process data for candles
+    // Simple aggregation: Group by minute
+    const candles = []
+    const rawData = history.reverse() // Back to chronological order
+    
+    if (rawData.length === 0) {
+        if (chartInstance) chartInstance.dispose()
+        return
+    }
+
+    let currentCandle = null
+    
+    rawData.forEach(trade => {
+      const date = new Date(trade.time)
+      // Round down to nearest minute
+      date.setSeconds(0, 0)
+      const timeStr = date.getTime()
+      
+      if (!currentCandle || currentCandle.time !== timeStr) {
+        if (currentCandle) candles.push(currentCandle)
+        currentCandle = {
+          time: timeStr,
+          open: trade.price,
+          high: trade.price,
+          low: trade.price,
+          close: trade.price,
+          volume: trade.quantity
+        }
+      } else {
+        currentCandle.high = Math.max(currentCandle.high, trade.price)
+        currentCandle.low = Math.min(currentCandle.low, trade.price)
+        currentCandle.close = trade.price
+        currentCandle.volume += trade.quantity
+      }
+    })
+    if (currentCandle) candles.push(currentCandle)
+
+    renderChart(candles)
+  } catch (e) {
+    console.error("Failed to load history", e)
+  }
+}
+
+const renderChart = (data) => {
+  if (!chartRef.value) return
+  
+  if (chartInstance) {
+    chartInstance.dispose()
+  }
+  
+  chartInstance = echarts.init(chartRef.value)
+  
+  const dates = data.map(item => new Date(item.time).toLocaleTimeString())
+  const values = data.map(item => [item.open, item.close, item.low, item.high])
+  
+  const option = {
+    backgroundColor: '#161a1e',
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'cross'
+      }
+    },
+    grid: {
+      left: '10%',
+      right: '10%',
+      bottom: '15%'
+    },
+    xAxis: {
+      type: 'category',
+      data: dates,
+      scale: true,
+      boundaryGap: false,
+      axisLine: { onZero: false },
+      splitLine: { show: false },
+      min: 'dataMin',
+      max: 'dataMax'
+    },
+    yAxis: {
+      scale: true,
+      splitArea: {
+        show: true
+      }
+    },
+    dataZoom: [
+      {
+        type: 'inside',
+        start: 50,
+        end: 100
+      },
+      {
+        show: true,
+        type: 'slider',
+        top: '90%',
+        start: 50,
+        end: 100
+      }
+    ],
+    series: [
+      {
+        name: 'K-Line',
+        type: 'candlestick',
+        data: values,
+        itemStyle: {
+          color: '#0ecb81',
+          color0: '#f6465d',
+          borderColor: '#0ecb81',
+          borderColor0: '#f6465d'
+        }
+      }
     ]
   }
+  
+  chartInstance.setOption(option)
+}
 
-  // Pre-select item if passed in query
-  if (route.query.itemId) {
-    selectedItem.value = Number(route.query.itemId)
+const formatTime = (isoString) => {
+  const date = new Date(isoString)
+  return date.toLocaleTimeString()
+}
+
+// Refresh data periodically or after actions
+const refreshData = () => {
+  handleItemChange()
+  loadUserBalance()
+}
+
+// Taker Action (Trade against existing order)
+const handleTrade = async (order) => {
+  const userId = localStorage.getItem('userId')
+  if (!userId) {
+    alert('请先登录')
+    return
   }
-  if (route.query.action) {
-    activeTab.value = route.query.action
+
+  const quantity = prompt(`请输入交易数量 (最大 ${order.quantity}):`, "1")
+  if (!quantity) return
+  
+  const qty = parseInt(quantity)
+  if (isNaN(qty) || qty <= 0 || qty > order.quantity) {
+    alert('无效的数量')
+    return
   }
-})
 
-const total = computed(() => {
-  return (Number(price.value) * Number(amount.value)).toFixed(2)
-})
+  try {
+    await executeTrade({
+      orderId: order.orderId,
+      userId: userId,
+      quantity: qty
+    })
+    alert('交易成功！')
+    refreshData()
+  } catch (error) {
+    console.error(error)
+    const msg = error.response?.data?.message || '交易失败'
+    if (msg.includes("Insufficient funds")) {
+      alert('余额不足！请充值。')
+    } else {
+      alert('错误: ' + msg)
+    }
+  }
+}
 
-const executeTrade = async () => {
-  if (!selectedItem.value || !price.value || !amount.value) {
-    alert('请填写完整信息')
+// Maker Action (Create new limit order)
+const executeCreateOrder = async () => {
+  const userId = localStorage.getItem('userId')
+  if (!userId) {
+    alert('请先登录')
+    return
+  }
+  
+  if (!formPrice.value || !formAmount.value) {
+    alert('请填写价格和数量')
     return
   }
 
   try {
     await createOrder({
       itemId: selectedItem.value,
-      price: Number(price.value),
-      amount: Number(amount.value),
-      type: activeTab.value
+      price: Number(formPrice.value),
+      amount: Number(formAmount.value),
+      type: activeTab.value.toUpperCase(),
+      userId: userId // Pass userId explicitly if backend requires it
     })
-    alert(`${activeTab.value === 'buy' ? '购买' : '出售'} 订单已提交`)
+    alert('挂单发布成功！')
+    formPrice.value = ''
+    formAmount.value = 1
+    refreshData()
   } catch (error) {
     console.error(error)
-    alert('交易失败: ' + (error.message || '未知错误'))
+    alert('发布失败: ' + (error.response?.data?.message || error.message))
   }
 }
 </script>
 
 <style scoped>
 .container {
-  display: flex;
-  gap: 20px;
-  padding: 40px;
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
-}
-
-.trade-panel, .order-book {
-  background: var(--panel);
-  border-radius: 12px;
   padding: 20px;
 }
 
-.trade-panel {
-  flex: 1;
+.top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--panel);
+  padding: 15px 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
 }
 
-.order-book {
+.item-selector select {
+  margin-left: 10px;
+  padding: 8px;
+  border-radius: 4px;
+  background: #2b3139;
+  color: white;
+  border: 1px solid #444;
+  min-width: 200px;
+}
+
+.user-balance span {
+  color: #fcd535;
+  font-weight: bold;
+  font-size: 16px;
+}
+
+/* 3-Column Layout */
+.trade-layout {
+  display: grid;
+  grid-template-columns: 300px 1fr 320px;
+  gap: 10px;
+  height: 600px;
+}
+
+.trade-panel {
+  background: var(--panel);
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.trade-panel h3 {
+  font-size: 16px;
+  padding: 15px;
+  margin: 0;
+  border-bottom: 1px solid #2b3139;
+  background: #1e2329;
+}
+
+/* Order Book Styles */
+.order-book-vertical {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+  overflow-y: auto;
+}
+
+.order-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  padding: 4px 10px;
+  align-items: center;
+  cursor: pointer;
+}
+
+.order-row.header {
+  color: #848e9c;
+  padding: 10px;
+  font-size: 12px;
+}
+
+.order-row.item:hover {
+  background: #2b3139;
+}
+
+.sell .price { color: #f6465d; }
+.buy .price { color: #0ecb81; }
+.qty { color: #eaecef; text-align: right; }
+
+.spread-bar {
+  padding: 10px;
+  text-align: center;
+  border-top: 1px solid #2b3139;
+  border-bottom: 1px solid #2b3139;
+  margin: 5px 0;
+}
+
+.current-price {
+  font-size: 20px;
+  font-weight: bold;
+  color: #eaecef;
+  margin-right: 10px;
+}
+
+.spread-label {
+  font-size: 12px;
+  color: #848e9c;
+}
+
+.btn-action {
+  border: none;
+  border-radius: 2px;
+  padding: 2px 6px;
+  font-size: 10px;
+  cursor: pointer;
+  justify-self: end;
+}
+.btn-buy-mini { background: #f6465d; color: white; }
+.btn-sell-mini { background: #0ecb81; color: black; }
+
+/* Chart Panel */
+.chart-panel {
+  position: relative;
+}
+
+.chart-container {
+  flex: 1;
+  min-height: 300px;
+  background: #161a1e;
+}
+
+.recent-trades {
+  height: 200px;
+  border-top: 1px solid #2b3139;
+  padding: 10px;
+  overflow-y: auto;
+}
+
+.recent-trades h4 {
+  margin: 0 0 10px 0;
+  font-size: 14px;
+  color: #eaecef;
+}
+
+.trade-history-list {
+  font-size: 12px;
+}
+
+.trade-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  padding: 2px 0;
+  color: #848e9c;
+}
+.trade-row .green { color: #0ecb81; }
+.trade-row .red { color: #f6465d; }
+
+.empty-history {
+  text-align: center;
+  padding: 20px;
+  color: #848e9c;
+}
+
+/* Place Order Panel */
+.place-order-panel {
+  padding: 0;
 }
 
 .tabs {
   display: flex;
-  margin-bottom: 20px;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
 }
 
 .tabs button {
   flex: 1;
-  background: transparent;
-  border: none;
-  color: var(--text-light);
   padding: 15px;
+  background: #1e2329;
+  border: none;
+  color: #848e9c;
   cursor: pointer;
-  font-size: 16px;
-  border-bottom: 2px solid transparent;
+  font-weight: bold;
+  transition: all 0.2s;
 }
 
 .tabs button.active {
-  color: var(--primary);
-  border-bottom-color: var(--primary);
+  color: white;
+}
+
+.tabs button.tab-buy.active { background: #0ecb81; }
+.tabs button.tab-sell.active { background: #f6465d; }
+
+.order-form {
+  padding: 20px;
 }
 
 .form-group {
-  margin-bottom: 20px;
+  margin-bottom: 15px;
 }
 
 .form-group label {
   display: block;
   margin-bottom: 8px;
-  color: var(--text-light);
+  font-size: 12px;
+  color: #848e9c;
 }
 
-.form-group input, .form-group select {
+.input-wrapper {
+  display: flex;
+  background: #2b3139;
+  border-radius: 4px;
+  border: 1px solid #444;
+  align-items: center;
+  padding-right: 10px;
+}
+
+.input-wrapper input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  padding: 10px;
+  color: white;
+  outline: none;
+}
+
+.suffix {
+  color: #848e9c;
+  font-size: 12px;
+}
+
+.slider-group {
+  margin: 20px 0;
+}
+
+.slider {
   width: 100%;
-  padding: 12px;
-  background: rgba(0,0,0,0.2);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 6px;
-  color: var(--text);
 }
 
 .summary {
-  margin: 20px 0;
-  text-align: right;
-  font-size: 18px;
+  margin-bottom: 20px;
+  font-size: 12px;
+  color: #848e9c;
 }
 
-.summary span {
-  color: var(--primary);
+.summary .row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 5px;
+}
+
+.summary .total span:last-child {
+  font-size: 16px;
+  color: white;
   font-weight: bold;
 }
 
+.btn-buy-main { background: #0ecb81; color: white; border: none; }
+.btn-sell-main { background: #f6465d; color: white; border: none; }
+
 .full-width {
   width: 100%;
-  padding: 15px;
-  font-size: 16px;
+  padding: 12px;
+  border-radius: 4px;
+  font-weight: bold;
+  cursor: pointer;
 }
 
-.book-header, .book-item {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  padding: 10px;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
-}
-
-.book-header {
-  color: var(--text-light);
-  font-size: 14px;
-}
-
-.text-up { color: var(--up); }
-.text-down { color: var(--down); }
-.time { color: var(--text-light); }
-
-.mb-4 {
-  margin-bottom: 20px;
-}
-
-.no-data {
-  padding: 20px;
-  text-align: center;
-  color: var(--text-light);
+@media (max-width: 1024px) {
+  .trade-layout {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+  .trade-panel {
+    height: auto;
+    min-height: 400px;
+  }
 }
 </style>

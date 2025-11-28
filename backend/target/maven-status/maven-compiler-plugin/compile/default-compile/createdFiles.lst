@@ -1,6 +1,10 @@
 com/gamemarket/DataLoader.class
+com/gamemarket/controller/RechargeRequest.class
+com/gamemarket/service/OrderService.class
 com/gamemarket/repository/PlayerRepository.class
 com/gamemarket/repository/WalletRepository.class
+com/gamemarket/controller/WalletController.class
+com/gamemarket/service/WalletService.class
 com/gamemarket/repository/MarketOrderRepository.class
 com/gamemarket/GameMarketApplication.class
 com/gamemarket/entity/TradeHistory.class

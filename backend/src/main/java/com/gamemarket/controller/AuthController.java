@@ -29,6 +29,10 @@ public class AuthController {
         String usernameOrEmail = credentials.get("username");
         String password = credentials.get("password");
 
+        if (usernameOrEmail == null || usernameOrEmail.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Username or email is required"));
+        }
+
         Player player = playerRepository.findByPlayerName(usernameOrEmail);
         if (player == null) {
             player = playerRepository.findByEmail(usernameOrEmail);
@@ -51,6 +55,13 @@ public class AuthController {
         String username = data.get("username");
         String password = data.get("password");
         String email = data.get("email");
+
+        if (username == null || username.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Username is required"));
+        }
+        if (password == null || password.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Password is required"));
+        }
 
         if (playerRepository.findByPlayerName(username) != null) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", "Username already exists"));

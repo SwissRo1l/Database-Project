@@ -22,6 +22,9 @@ public class PlayerAsset {
     @Column(name = "reserved_quantity")
     private Integer reservedQuantity = 0;
 
+    @Column(name = "purchase_date")
+    private java.time.LocalDateTime purchaseDate = java.time.LocalDateTime.now();
+
     // Getters and Setters
     public Integer getId() { return id; }
     public void setId(Integer id) { this.id = id; }
@@ -33,4 +36,6 @@ public class PlayerAsset {
     public void setQuantity(Integer quantity) { this.quantity = quantity; }
     public Integer getReservedQuantity() { return reservedQuantity; }
     public void setReservedQuantity(Integer reservedQuantity) { this.reservedQuantity = reservedQuantity; }
+    public java.time.LocalDateTime getPurchaseDate() { return purchaseDate; }
+    public void setPurchaseDate(java.time.LocalDateTime purchaseDate) { this.purchaseDate = purchaseDate; }
 }
