@@ -38,6 +38,10 @@
                 <span class="label">拥有数量:</span>
                 <span class="val">{{ item.quantity }}</span>
               </div>
+              <div class="detail-row" v-if="item.reserved > 0">
+                <span class="label">挂单中:</span>
+                <span class="val reserved">{{ item.reserved }}</span>
+              </div>
             </div>
 
             <div class="card-actions">
@@ -180,6 +184,11 @@ onMounted(async () => {
 
 .detail-row .price {
   color: #4dff4d;
+}
+
+.detail-row .reserved {
+  color: #f6465d;
+  font-weight: bold;
 }
 
 .card-actions {

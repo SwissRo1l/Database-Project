@@ -47,7 +47,7 @@ public class TradeController {
                 }
             }
 
-            var trades = orderService.createOrder(payload, requesterId);
+            orderService.createOrder(payload, requesterId);
 
             // Fetch updated wallet for requester to provide immediate balance feedback
             var wallet = walletRepository.findByPlayerId(requesterId);
@@ -62,7 +62,6 @@ public class TradeController {
 
             return Map.of(
                 "message", "Order created successfully",
-                "trades", trades,
                 "balance", balance,
                 "reserved", reserved,
                 "available", available

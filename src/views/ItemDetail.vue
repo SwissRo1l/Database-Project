@@ -24,31 +24,35 @@
       </div>
       
       <div class="chart-section">
-        <h3>价格走势</h3>
-        <div class="chart-placeholder">
-          <!-- 这里可以放 ECharts 图表 -->
-          <p>Price History Chart Placeholder</p>
-        </div>
+        <h3>价格走势 (Daily Min Price)</h3>
+        <div class="chart-container" ref="chartRef"></div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import NavBar from '../components/NavBar.vue'
 import { fetchItem } from '../api/item'
+import { fetchDailyHistory } from '../api/market'
+import * as echarts from 'echarts'
 
 const route = useRoute()
 const router = useRouter()
 const item = ref({})
+const chartRef = ref(null)
+let chartInstance = null
 
 onMounted(async () => {
   const id = route.params.id
   try {
     const res = await fetchItem(id)
     item.value = res || {}
+    
+    // Fetch chart data
+    await loadChartData(id)
   } catch (error) {
     console.error('Failed to fetch item:', error)
     // Fallback
@@ -60,7 +64,78 @@ onMounted(async () => {
       img: "https://via.placeholder.com/400x300"
     }
   }
+  
+  window.addEventListener('resize', () => {
+    chartInstance && chartInstance.resize()
+  })
 })
+
+const loadChartData = async (itemId) => {
+  try {
+    const data = await fetchDailyHistory(itemId)
+    if (data && data.length > 0) {
+      renderChart(data)
+    }
+  } catch (e) {
+    console.error("Failed to load chart data", e)
+  }
+}
+
+const renderChart = (data) => {
+  if (!chartRef.value) return
+  
+  if (chartInstance) {
+    chartInstance.dispose()
+  }
+  
+  chartInstance = echarts.init(chartRef.value)
+  
+  const dates = data.map(item => item.date)
+  const prices = data.map(item => item.price)
+  
+  const option = {
+    backgroundColor: 'transparent',
+    tooltip: {
+      trigger: 'axis'
+    },
+    grid: {
+      left: '5%',
+      right: '5%',
+      bottom: '10%',
+      top: '10%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      data: dates,
+      axisLine: { lineStyle: { color: '#888' } },
+      axisLabel: { color: '#888' }
+    },
+    yAxis: {
+      type: 'value',
+      scale: true,
+      splitLine: { lineStyle: { color: '#333' } },
+      axisLabel: { color: '#888' }
+    },
+    series: [
+      {
+        name: 'Min Price',
+        type: 'line',
+        smooth: true,
+        data: prices,
+        itemStyle: { color: '#fcd535' },
+        areaStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: 'rgba(252, 213, 53, 0.5)' },
+            { offset: 1, color: 'rgba(252, 213, 53, 0.0)' }
+          ])
+        }
+      }
+    ]
+  }
+  
+  chartInstance.setOption(option)
+}
 
 const buyItem = () => {
   router.push({ path: '/trade', query: { itemId: item.value.id, action: 'buy' } })
@@ -84,6 +159,7 @@ const goBack = () => {
   background: var(--panel);
   padding: 40px;
   border-radius: 12px;
+  margin-bottom: 40px;
 }
 
 .item-image img {
@@ -138,19 +214,18 @@ const goBack = () => {
 }
 
 .chart-section {
-  margin-top: 40px;
   background: var(--panel);
-  padding: 20px;
+  padding: 30px;
   border-radius: 12px;
 }
 
-.chart-placeholder {
-  height: 300px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0,0,0,0.2);
-  border-radius: 8px;
-  color: var(--text-light);
+.chart-section h3 {
+  margin-bottom: 20px;
+  color: var(--text);
+}
+
+.chart-container {
+  height: 400px;
+  width: 100%;
 }
 </style>

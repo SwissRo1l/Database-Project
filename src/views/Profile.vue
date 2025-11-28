@@ -15,7 +15,7 @@
         </div>
         <div class="balance-card">
           <p class="label">账户余额</p>
-          <p class="amount">{{ userStore.available.toLocaleString() }} G</p>
+          <p class="amount">{{ (userStore.available || 0).toLocaleString() }} G</p>
           <button class="deposit-btn" @click="deposit">充值</button>
         </div>
       </div>

@@ -15,3 +15,7 @@ export function executeTrade(data) {
 export function fetchTradeHistory(itemId) {
   return request.get('/market/history', { params: { itemId } })
 }
+
+export function fetchDailyHistory(itemId) {
+  return request.get('/market/history/daily', { params: { itemId } })
+}

@@ -319,51 +319,53 @@ const renderChart = (data) => {
       }
     },
     grid: {
-      left: '10%',
-      right: '10%',
-      bottom: '15%'
+      left: '5%',
+      right: '5%',
+      bottom: '10%',
+      top: '10%'
     },
     xAxis: {
       type: 'category',
       data: dates,
       scale: true,
       boundaryGap: false,
-      axisLine: { onZero: false },
-      splitLine: { show: false },
-      min: 'dataMin',
-      max: 'dataMax'
+      axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: { color: '#848e9c' },
+      splitLine: { show: false }
     },
     yAxis: {
       scale: true,
-      splitArea: {
-        show: true
-      }
+      splitLine: {
+        show: true,
+        lineStyle: { color: '#2b3139' }
+      },
+      axisLabel: { color: '#848e9c' }
     },
     dataZoom: [
       {
         type: 'inside',
-        start: 50,
-        end: 100
-      },
-      {
-        show: true,
-        type: 'slider',
-        top: '90%',
-        start: 50,
+        start: 0,
         end: 100
       }
     ],
     series: [
       {
-        name: 'K-Line',
-        type: 'candlestick',
-        data: values,
+        name: 'Price',
+        type: 'line',
+        smooth: true,
+        symbol: 'none',
+        sampling: 'average',
         itemStyle: {
-          color: '#0ecb81',
-          color0: '#f6465d',
-          borderColor: '#0ecb81',
-          borderColor0: '#f6465d'
-        }
+          color: '#3b82f6'
+        },
+        areaStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: 'rgba(59, 130, 246, 0.5)' },
+            { offset: 1, color: 'rgba(59, 130, 246, 0.0)' }
+          ])
+        },
+        data: values.map(v => v[1]) // Use Close price
       }
     ]
   }

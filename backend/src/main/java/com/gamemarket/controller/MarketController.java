@@ -92,4 +92,15 @@ public class MarketController {
             ))
             .collect(Collectors.toList());
     }
+
+    @GetMapping("/history/daily")
+    public List<Map<String, Object>> getDailyHistory(@RequestParam Integer itemId) {
+        List<Object[]> results = tradeHistoryRepository.findDailyMinPriceByAssetId(itemId);
+        return results.stream()
+            .map(row -> Map.<String, Object>of(
+                "date", row[0].toString(),
+                "price", row[1]
+            ))
+            .collect(Collectors.toList());
+    }
 }

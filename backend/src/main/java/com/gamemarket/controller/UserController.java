@@ -44,8 +44,8 @@ public class UserController {
             balance = wallet.getBalance() == null ? BigDecimal.ZERO : wallet.getBalance();
             reserved = wallet.getReserved() == null ? BigDecimal.ZERO : wallet.getReserved();
         }
-        // After reservation we move funds out of balance into reserved; balance represents available funds
-        BigDecimal available = balance;
+        // Available funds = Total Balance - Reserved Amount
+        BigDecimal available = balance.subtract(reserved);
 
         return Map.<String, Object>of(
             "username", player.getPlayerName(),
@@ -92,7 +92,8 @@ public class UserController {
                 "img", "https://via.placeholder.com/150?text=" + pa.getAsset().getAssetName().replace(" ", "+"),
                 "price", lowestPrice != null ? lowestPrice : "暂无报价",
                 "purchaseDate", pa.getPurchaseDate() != null ? pa.getPurchaseDate().toString() : "未知",
-                "quantity", pa.getQuantity()
+                "quantity", pa.getQuantity(),
+                "reserved", pa.getReservedQuantity() != null ? pa.getReservedQuantity() : 0
             );
         }).collect(Collectors.toList());
     }

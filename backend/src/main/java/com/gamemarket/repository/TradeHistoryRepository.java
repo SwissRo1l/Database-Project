@@ -12,4 +12,7 @@ public interface TradeHistoryRepository extends JpaRepository<TradeHistory, Inte
     List<TradeHistory> findByPlayerId(Integer playerId);
 
     List<TradeHistory> findByAsset_AssetIdOrderByTradeTimeAsc(Integer assetId);
+
+    @Query(value = "SELECT CAST(trade_time AS DATE) as trade_date, MIN(price) as min_price FROM trade_history WHERE asset_id = :assetId GROUP BY CAST(trade_time AS DATE) ORDER BY trade_date ASC", nativeQuery = true)
+    List<Object[]> findDailyMinPriceByAssetId(Integer assetId);
 }
