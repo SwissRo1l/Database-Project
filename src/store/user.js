@@ -4,9 +4,27 @@ export const useUserStore = defineStore('user', {
   state: () => ({
     id: null,
     name: null,
-    token: null
+    token: null,
+    uid: null,
+    balance: 0,
+    reserved: 0,
+    available: 0
   }),
   actions: {
-    setUser(user) { Object.assign(this, user) }
+    setUser(user = {}) {
+      // Accept user object from API: { username, email, balance, reserved, available, uid }
+      if (user.username) this.name = user.username
+      if (user.email) this.email = user.email
+      if (user.uid) this.uid = user.uid
+      if (user.balance !== undefined) this.balance = Number(user.balance)
+      if (user.reserved !== undefined) this.reserved = Number(user.reserved)
+      if (user.available !== undefined) this.available = Number(user.available)
+      if (user.id) this.id = user.id
+    },
+    setBalance(bal, reserved = 0) {
+      this.balance = Number(bal)
+      this.reserved = Number(reserved)
+      this.available = Number(bal) - Number(reserved)
+    }
   }
 })
