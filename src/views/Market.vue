@@ -100,7 +100,9 @@
 
       <!-- Item Grid -->
       <div v-if="isLoading" class="loading-state">
-        加载中...
+        <div class="loading-wave">
+          <span>加</span><span>载</span><span>中</span><span>.</span><span>.</span><span>.</span>
+        </div>
       </div>
       <div v-else class="item-grid">
         <ItemCard 
@@ -284,7 +286,7 @@ onUnmounted(() => {
 <style scoped>
 .market-page {
   min-height: 100vh;
-  background-color: var(--bg);
+  /* background-color: var(--bg); Removed to show global dynamic background */
 }
 
 /* Hero Carousel */

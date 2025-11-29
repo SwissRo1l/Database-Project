@@ -17,7 +17,7 @@
       </div>
 
       <div class="inventory-grid">
-        <div class="item-card" v-for="item in inventoryItems" :key="item.id">
+        <div class="item-card" v-for="item in paginatedItems" :key="item.id">
           <div class="card-image">
             <img :src="getItemImage(item.name)" alt="Item">
           </div>
@@ -51,12 +51,31 @@
           </div>
         </div>
       </div>
+
+      <!-- Pagination -->
+      <div class="pagination" v-if="totalPages > 1">
+        <button 
+          :disabled="currentPage === 0" 
+          @click="changePage(currentPage - 1)"
+          class="page-btn"
+        >
+          上一页
+        </button>
+        <span class="page-info">第 {{ currentPage + 1 }} 页 / 共 {{ totalPages }} 页</span>
+        <button 
+          :disabled="currentPage >= totalPages - 1" 
+          @click="changePage(currentPage + 1)"
+          class="page-btn"
+        >
+          下一页
+        </button>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import NavBar from '../components/NavBar.vue'
 import { fetchInventory } from '../api/user'
 import { getItemImage } from '../utils/itemImages'
@@ -64,6 +83,23 @@ import { getItemImage } from '../utils/itemImages'
 const inventoryItems = ref([])
 const totalValue = ref(0)
 const itemCount = ref(0)
+const currentPage = ref(0)
+const pageSize = 12
+
+const totalPages = computed(() => Math.ceil(inventoryItems.value.length / pageSize))
+
+const paginatedItems = computed(() => {
+  const start = currentPage.value * pageSize
+  const end = start + pageSize
+  return inventoryItems.value.slice(start, end)
+})
+
+const changePage = (page) => {
+  if (page >= 0 && page < totalPages.value) {
+    currentPage.value = page
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+}
 
 const formatDate = (dateStr) => {
   if (!dateStr || dateStr === '未知') return '未知'
@@ -182,6 +218,40 @@ onMounted(async () => {
   display: flex;
   justify-content: space-between;
   margin-bottom: 4px;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 40px;
+  gap: 20px;
+}
+
+.page-btn {
+  background: var(--panel);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text);
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.page-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.page-btn:not(:disabled):hover {
+  background: rgba(255,255,255,0.1);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.page-info {
+  color: var(--text-light);
+  font-size: 0.9rem;
 }
 
 .detail-row .price {
