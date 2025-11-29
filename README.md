@@ -10,13 +10,6 @@
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.x-6DB33F?style=flat-square&logo=spring)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?style=flat-square&logo=postgresql)
 
-## ✨ 最新更新 (Latest Updates)
-
-- **🎨 沉浸式 UI**: 全新设计的动态粒子背景（Particle Network），支持鼠标互动；新增波浪式加载动画，提升视觉流畅度。
-- **🔍 高级筛选**: 市场页面新增“全部商品”视图，支持按**分类**（步枪、狙击枪、手枪、刀具）筛选，并提供多种**排序**方式（价格升/降序、最新发布）。
-- **🖼️ 个性化头像**: 用户中心支持本地上传自定义头像，打造专属个人资料。
-- **📦 库存管理**: 优化了背包界面，新增分页功能，轻松管理海量库存物品。
-
 ## 🚀 主要功能 (Features)
 
 ### 🛒 市场系统 (Marketplace)
