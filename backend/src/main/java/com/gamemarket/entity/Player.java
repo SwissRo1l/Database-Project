@@ -26,6 +26,9 @@ public class Player {
     @Column(name = "register_time")
     private LocalDateTime registerTime = LocalDateTime.now();
 
+    @Column(name = "avatar")
+    private String avatar;
+
     // Getters and Setters
     public Integer getPlayerId() { return playerId; }
     public void setPlayerId(Integer playerId) { this.playerId = playerId; }
@@ -39,4 +42,6 @@ public class Player {
     public void setLevel(Integer level) { this.level = level; }
     public LocalDateTime getRegisterTime() { return registerTime; }
     public void setRegisterTime(LocalDateTime registerTime) { this.registerTime = registerTime; }
+    public String getAvatar() { return avatar; }
+    public void setAvatar(String avatar) { this.avatar = avatar; }
 }

@@ -34,7 +34,9 @@ public class MarketController {
     public List<Map<String, Object>> getListings(
             @RequestParam(required = false) String sort, 
             @RequestParam(required = false) Integer limit,
-            @RequestParam(required = false) Integer itemId) {
+            @RequestParam(required = false) Integer itemId,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String category) {
         
         List<MarketOrder> orders = orderRepository.findByStatus("OPEN");
         
@@ -43,8 +45,36 @@ public class MarketController {
                 .filter(o -> o.getAsset().getAssetId().equals(itemId))
                 .collect(Collectors.toList());
         }
+
+        if (keyword != null && !keyword.isEmpty()) {
+            String lowerKeyword = keyword.toLowerCase();
+            orders = orders.stream()
+                .filter(o -> o.getAsset().getAssetName().toLowerCase().contains(lowerKeyword))
+                .collect(Collectors.toList());
+        }
+
+        if (category != null && !category.isEmpty() && !category.equals("All")) {
+            orders = orders.stream()
+                .filter(o -> o.getAsset() != null && o.getAsset().getAssetType() != null && o.getAsset().getAssetType().equalsIgnoreCase(category))
+                .collect(Collectors.toList());
+        }
+
+        if (sort != null) {
+            switch (sort) {
+                case "price_asc":
+                    orders.sort((o1, o2) -> o1.getPrice().compareTo(o2.getPrice()));
+                    break;
+                case "price_desc":
+                    orders.sort((o1, o2) -> o2.getPrice().compareTo(o1.getPrice()));
+                    break;
+                case "newest":
+                    orders.sort((o1, o2) -> o2.getCreateTime().compareTo(o1.getCreateTime()));
+                    break;
+                // 'hot' and 'gainers' are currently just placeholders or default sort
+            }
+        }
         
-        return orders.stream().limit(limit != null ? limit : 50).map(order -> {
+        return orders.stream().limit(limit != null ? limit : 100).map(order -> {
             Asset asset = order.getAsset();
             String encodedName = asset.getAssetName().replace(" ", "+");
             String imgUrl = "https://via.placeholder.com/300x200?text=" + encodedName;

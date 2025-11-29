@@ -1,34 +1,52 @@
 # Game Market Project (游戏资产交易市场)
-## 待修改
-1.两个账户余额刷新不同步  
-2.背包显示问题  
-3.账户购买记录（顺序，买卖（买红色，卖绿色），加减钱）  
-4.买卖订单会有一个小提示  
-5.商品的图片和账户图片  
 
 这是一个基于 Spring Boot 和 Vue 3 的全栈游戏资产交易平台。项目模拟了一个真实的游戏内市场，支持玩家之间的物品买卖、价格走势分析（K线图）、资产管理以及钱包充值等功能。
 
+![Vue 3](https://img.shields.io/badge/Vue-3.x-4FC08D?style=flat-square&logo=vue.js)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.x-6DB33F?style=flat-square&logo=spring)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?style=flat-square&logo=postgresql)
+
 ## ✨ 主要功能 (Features)
 
-- **市场大厅 (Market)**: 浏览所有上架商品，查看热门商品和涨幅榜。
-- **交易中心 (Trade)**:
-  - **K线图 (K-Line Chart)**: 实时查看物品价格走势（基于 ECharts）。
-  - **深度图 (Order Book)**: 查看当前的买单和卖单列表。
-  - **交易面板**: 快速下单（限价买入/卖出），自动匹配撮合交易。
-- **个人中心 (Profile)**:
-  - **背包 (Inventory)**: 查看和管理持有的游戏资产。
-  - **钱包 (Wallet)**: 查看余额、充值、查看交易流水。
-  - **订单管理**: 查看和取消当前挂单。
-- **安全机制**:
-  - **数据一致性**: 启动时自动修复异常订单数据。
-  - **交易原子性**: 保证扣款、扣货、订单生成的事务一致性。
+### 🛒 市场系统 (Marketplace)
+- **实时行情**: 首页展示热门推荐商品和 24小时涨幅榜。
+- **全局搜索**: 支持通过关键词快速搜索特定装备（如 "AWP", "Dragon Lore"）。
+- **视觉体验**: 全量覆盖 80+ 种武器皮肤组合的高清预览图（集成 Steam 社区资源）。
+
+### 📊 交易中心 (Trading Center)
+- **专业图表**: 集成 ECharts 绘制实时 K线图，支持查看历史价格走势。
+- **深度数据**: 实时展示买卖盘口（Order Book），辅助交易决策。
+- **快速撮合**: 支持限价买入/卖出，系统自动匹配最优价格进行撮合。
+
+### 👤 用户中心 (User Profile)
+- **资产背包**: 可视化管理持有的游戏饰品，支持查看稀有度、参考价和持仓成本。
+- **钱包系统**: 支持模拟充值、提现，并提供详细的资金流水记录（包含买入支出、卖出收入）。
+- **订单管理**: 实时查看当前挂单状态，支持随时撤单。
+
+### 🛡️ 系统特性 (System Features)
+- **数据一致性**: 启动时自动扫描并修复异常订单数据（Self-Healing）。
+- **事务安全**: 严格的数据库事务控制，确保资金扣除与资产转移的原子性。
+- **自动做市**: 内置数据加载器（DataLoader），初始化时自动生成丰富的市场流动性。
 
 ## 🛠 技术栈 (Tech Stack)
 
-- **Frontend**: Vue 3, Vite, Vue Router, Pinia (State Management), Axios, ECharts
-- **Backend**: Java 21, Spring Boot 3.3.5, Spring Data JPA, Hibernate
-- **Database**: PostgreSQL 16
-- **DevOps**: Docker (Database), Maven, NPM
+- **Frontend**: 
+  - Vue 3 (Composition API)
+  - Vite (Build Tool)
+  - Vue Router (Routing)
+  - Pinia (State Management)
+  - ECharts (Data Visualization)
+- **Backend**: 
+  - Java 21
+  - Spring Boot 3.3.5
+  - Spring Data JPA / Hibernate
+  - Lombok
+- **Database**: 
+  - PostgreSQL 16
+- **DevOps**: 
+  - Docker & Docker Compose
+  - Maven
+  - NPM
 
 ## 📂 项目结构 (Project Structure)
 
@@ -43,9 +61,10 @@ Database-Project/
 │   └── pgdata/              # PostgreSQL 数据挂载目录
 ├── src/                     # 前端项目 (Vue 3)
 │   ├── api/                 # API 接口层
-│   ├── components/          # 公共组件 (Charts, Cards)
-│   ├── views/               # 页面视图 (Trade, Market, Profile)
-│   ├── store/               # 状态管理
+│   ├── components/          # 公共组件 (ItemCard, NavBar, Charts)
+│   ├── views/               # 页面视图 (Market, Trade, Inventory)
+│   ├── store/               # 状态管理 (User, Market)
+│   ├── utils/               # 工具类 (Image Mapping, Request)
 │   └── router/              # 路由配置
 ├── vite.config.js           # Vite 配置
 └── package.json             # 前端依赖
@@ -54,14 +73,15 @@ Database-Project/
 ## 🚀 快速开始 (Getting Started)
 
 ### 1. 环境准备
-- Docker & Docker Compose (推荐)
-- Java 21+
-- Node.js 18+
+- Docker & Docker Compose (推荐用于数据库)
+- Java 21+ (后端运行)
+- Node.js 18+ (前端运行)
 
 ### 2. 启动数据库
 使用 Docker 快速启动 PostgreSQL 实例：
+
 ```bash
-# 在项目根目录下运行
+# 首次启动
 docker run --name market-postgres \
   -e POSTGRES_PASSWORD=market \
   -e POSTGRES_USER=market \
@@ -69,17 +89,20 @@ docker run --name market-postgres \
   -p 5432:5432 \
   -v $(pwd)/database/pgdata:/var/lib/postgresql/data \
   -d postgres:16
+
+# 后续启动
+docker start market-postgres
 ```
 
 ### 3. 启动后端服务
-后端启动时会自动连接数据库并初始化测试数据（DataLoader）。
+后端启动时会自动连接数据库并初始化测试数据。
+
 ```bash
 cd backend
-# 运行 Spring Boot 应用
 mvn spring-boot:run
 ```
 - 服务端口: `8080`
-- **注意**: 如果启动时检测到数据不一致（如卖单缺少资产），系统会自动修复并输出日志 `Fixed X inconsistent orders`。
+- API 文档: 启动后访问后端接口
 
 ### 4. 启动前端应用
 ```bash
@@ -89,19 +112,13 @@ npm run dev
 ```
 - 访问地址: `http://localhost:5173`
 
-## 🧪 测试账号
-系统启动后会预置以下测试账号：
-- **Username**: `testuser`
-- **Password**: `password`
+## 📝 最近更新 (Recent Updates)
 
-## 🔌 API 概览
-| 模块 | 方法 | 路径 | 描述 |
-| --- | --- | --- | --- |
-| **Auth** | POST | `/api/auth/login` | 用户登录 |
-| **Market** | GET | `/api/market/history` | 获取K线图历史数据 |
-| **Trade** | POST | `/api/trade/execute` | 执行交易 (买入/卖出) |
-| **User** | GET | `/api/user/inventory/{id}` | 获取用户背包 |
+- **[Feature] 全局搜索**: 导航栏新增搜索功能，支持模糊查询装备名称。
+- **[UI] 图片系统升级**: 完善了 `itemImages.js` 映射表，覆盖所有 80 种生成的武器皮肤组合，解决了图片缺失问题。
+- **[Fix] 数据同步**: 修复了交易后余额刷新延迟和背包显示异常的问题。
+- **[UX] 交互优化**: 优化了买卖操作的反馈提示和订单状态显示。
 
-## 📝 开发日志
-- **2025-11-28**: 修复了交易时的 `Seller asset not found` 数据不一致问题，增加了启动自修复逻辑。
-- **2025-11-28**: 完成了交易界面的 K线图 (Candlestick Chart) 集成。
+## 📄 License
+
+MIT License

@@ -19,7 +19,7 @@
       <div class="inventory-grid">
         <div class="item-card" v-for="item in inventoryItems" :key="item.id">
           <div class="card-image">
-            <img :src="item.img || 'https://via.placeholder.com/150'" alt="Item">
+            <img :src="getItemImage(item.name)" alt="Item">
           </div>
           <div class="card-info">
             <h4>{{ item.name }}</h4>
@@ -59,6 +59,7 @@
 import { ref, onMounted } from 'vue'
 import NavBar from '../components/NavBar.vue'
 import { fetchInventory } from '../api/user'
+import { getItemImage } from '../utils/itemImages'
 
 const inventoryItems = ref([])
 const totalValue = ref(0)
@@ -82,13 +83,14 @@ onMounted(async () => {
 
   try {
     const res = await fetchInventory(userId)
-    inventoryItems.value = res || []
+    // Filter out items with 0 quantity
+    inventoryItems.value = (res || []).filter(item => item.quantity > 0)
     
     // Calculate stats
-    itemCount.value = inventoryItems.value.reduce((sum, item) => sum + (item.quantity || 1), 0)
+    itemCount.value = inventoryItems.value.reduce((sum, item) => sum + (item.quantity || 0), 0)
     totalValue.value = inventoryItems.value.reduce((sum, item) => {
       const price = typeof item.price === 'number' ? item.price : 0
-      return sum + (price * (item.quantity || 1))
+      return sum + (price * (item.quantity || 0))
     }, 0)
   } catch (e) {
     console.error(e)

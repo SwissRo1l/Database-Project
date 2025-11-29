@@ -5,14 +5,19 @@
       
       <!-- Top Bar: Item Selection -->
       <div class="top-bar">
-        <div class="item-selector">
-          <label>当前交易物品:</label>
-          <select v-model="selectedItem" @change="handleItemChange">
-            <option value="" disabled>请选择物品...</option>
-            <option v-for="item in items" :key="item.id" :value="item.id">
-              {{ item.name }}
-            </option>
-          </select>
+        <div class="item-selector-group">
+          <div class="item-selector">
+            <label>当前交易物品:</label>
+            <select v-model="selectedItem" @change="handleItemChange">
+              <option value="" disabled>请选择物品...</option>
+              <option v-for="item in items" :key="item.id" :value="item.id">
+                {{ item.name }}
+              </option>
+            </select>
+          </div>
+          <div class="item-preview" v-if="selectedItem">
+            <img :src="getItemImage(selectedItemName)" alt="Preview" />
+          </div>
         </div>
         <div class="user-balance" v-if="userBalance !== null">
           余额: <span>{{ userBalance }} G</span>
@@ -144,23 +149,34 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, watch, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import NavBar from '../components/NavBar.vue'
-import { fetchListings, executeTrade, fetchTradeHistory } from '../api/market'
+import { searchItems } from '../api/item'
+import { fetchListings, fetchTradeHistory, executeTrade } from '../api/market'
 import { createOrder } from '../api/trade'
 import { fetchProfile } from '../api/user'
-import { searchItems } from '../api/item'
 import * as echarts from 'echarts'
+import { useNotificationStore } from '../store/notification'
+import { useUserStore } from '../store/user'
+import { getItemImage } from '../utils/itemImages'
 
+const notificationStore = useNotificationStore()
+const userStore = useUserStore()
 const route = useRoute()
-const selectedItem = ref('')
+
 const items = ref([])
+const selectedItem = ref("")
+const userBalance = computed(() => userStore.available)
 const activeTab = ref('buy')
+
+const selectedItemName = computed(() => {
+  const item = items.value.find(i => i.id === selectedItem.value)
+  return item ? item.name : ''
+})
 
 const sellOrders = ref([])
 const buyOrders = ref([])
-const userBalance = ref(null)
 const currentPrice = ref(null)
 const recentTrades = ref([])
 
@@ -206,7 +222,7 @@ const loadUserBalance = async () => {
   if (userId) {
     try {
       const res = await fetchProfile(userId)
-      userBalance.value = res.balance
+      userStore.setUser(res)
     } catch (e) {
       console.error(e)
     }
@@ -388,7 +404,7 @@ const refreshData = () => {
 const handleTrade = async (order) => {
   const userId = localStorage.getItem('userId')
   if (!userId) {
-    alert('请先登录')
+    notificationStore.show('请先登录', 'error')
     return
   }
 
@@ -397,7 +413,7 @@ const handleTrade = async (order) => {
   
   const qty = parseInt(quantity)
   if (isNaN(qty) || qty <= 0 || qty > order.quantity) {
-    alert('无效的数量')
+    notificationStore.show('无效的数量', 'error')
     return
   }
 
@@ -407,15 +423,15 @@ const handleTrade = async (order) => {
       userId: userId,
       quantity: qty
     })
-    alert('交易成功！')
+    notificationStore.show('交易成功！', 'success')
     refreshData()
   } catch (error) {
     console.error(error)
     const msg = error.response?.data?.message || '交易失败'
     if (msg.includes("Insufficient funds")) {
-      alert('余额不足！请充值。')
+      notificationStore.show('余额不足！请充值。', 'error')
     } else {
-      alert('错误: ' + msg)
+      notificationStore.show('错误: ' + msg, 'error')
     }
   }
 }
@@ -424,12 +440,12 @@ const handleTrade = async (order) => {
 const executeCreateOrder = async () => {
   const userId = localStorage.getItem('userId')
   if (!userId) {
-    alert('请先登录')
+    notificationStore.show('请先登录', 'error')
     return
   }
   
   if (!formPrice.value || !formAmount.value) {
-    alert('请填写价格和数量')
+    notificationStore.show('请填写价格和数量', 'error')
     return
   }
 
@@ -441,13 +457,13 @@ const executeCreateOrder = async () => {
       type: activeTab.value.toUpperCase(),
       userId: userId // Pass userId explicitly if backend requires it
     })
-    alert('挂单发布成功！')
+    notificationStore.show('挂单发布成功！', 'success')
     formPrice.value = ''
     formAmount.value = 1
     refreshData()
   } catch (error) {
     console.error(error)
-    alert('发布失败: ' + (error.response?.data?.message || error.message))
+    notificationStore.show('发布失败: ' + (error.response?.data?.message || error.message), 'error')
   }
 }
 </script>
@@ -477,6 +493,22 @@ const executeCreateOrder = async () => {
   color: white;
   border: 1px solid #444;
   min-width: 200px;
+}
+
+.item-selector-group {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.item-preview img {
+  width: 40px;
+  height: 30px;
+  object-fit: contain;
+  vertical-align: middle;
+  border-radius: 4px;
+  background: #161a1e;
+  border: 1px solid #444;
 }
 
 .user-balance span {

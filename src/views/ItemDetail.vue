@@ -4,7 +4,7 @@
     <div class="container">
       <div class="detail-card">
         <div class="item-image">
-          <img :src="item.img || 'https://via.placeholder.com/400x300'" alt="Item Image">
+          <img :src="displayImage" alt="Item Image">
         </div>
         <div class="item-info">
           <h1>{{ item.name }}</h1>
@@ -32,18 +32,23 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, onMounted, nextTick, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import NavBar from '../components/NavBar.vue'
 import { fetchItem } from '../api/item'
 import { fetchDailyHistory } from '../api/market'
 import * as echarts from 'echarts'
+import { getItemImage } from '../utils/itemImages'
 
 const route = useRoute()
 const router = useRouter()
 const item = ref({})
 const chartRef = ref(null)
 let chartInstance = null
+
+const displayImage = computed(() => {
+  return getItemImage(item.value.name || '')
+})
 
 onMounted(async () => {
   const id = route.params.id

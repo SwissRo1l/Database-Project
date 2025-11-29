@@ -53,7 +53,8 @@ public class UserController {
             "balance", balance,
             "reserved", reserved,
             "available", available,
-            "uid", player.getPlayerId().toString()
+            "uid", player.getPlayerId().toString(),
+            "avatar", player.getAvatar() != null ? player.getAvatar() : ""
         );
     }
 
@@ -66,6 +67,9 @@ public class UserController {
         }
         if (data.containsKey("password")) {
             player.setPassword(data.get("password"));
+        }
+        if (data.containsKey("avatar")) {
+            player.setAvatar(data.get("avatar"));
         }
         
         playerRepository.save(player);

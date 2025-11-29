@@ -46,8 +46,8 @@ a,
   --primary: #3DAEFC;
   --text: #CCCCCC;
   --text-light: #8A8A8A;
-  --up: #4CAF50;
-  --down: #F44336;
+  --up: #F44336;
+  --down: #4CAF50;
 }
 
 body {

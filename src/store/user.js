@@ -8,11 +8,12 @@ export const useUserStore = defineStore('user', {
     uid: null,
     balance: 0,
     reserved: 0,
-    available: 0
+    available: 0,
+    avatar: null
   }),
   actions: {
     setUser(user = {}) {
-      // Accept user object from API: { username, email, balance, reserved, available, uid }
+      // Accept user object from API: { username, email, balance, reserved, available, uid, avatar }
       if (user.username) this.name = user.username
       if (user.email) this.email = user.email
       if (user.uid) this.uid = user.uid
@@ -20,6 +21,7 @@ export const useUserStore = defineStore('user', {
       if (user.reserved !== undefined) this.reserved = Number(user.reserved)
       if (user.available !== undefined) this.available = Number(user.available)
       if (user.id) this.id = user.id
+      if (user.avatar !== undefined) this.avatar = user.avatar
     },
     setBalance(bal, reserved = 0) {
       this.balance = Number(bal)
