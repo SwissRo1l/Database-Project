@@ -1,5 +1,9 @@
 # Game Market Project (游戏资产交易市场)
 
+##待修改
+1.交易界面有很多bug  
+2.市场界面也有很多bug  
+
 这是一个基于 Spring Boot 和 Vue 3 的全栈游戏资产交易平台。项目模拟了一个真实的游戏内市场，支持玩家之间的物品买卖、价格走势分析（K线图）、资产管理以及钱包充值等功能。
 
 ![Vue 3](https://img.shields.io/badge/Vue-3.x-4FC08D?style=flat-square&logo=vue.js)

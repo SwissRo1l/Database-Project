@@ -57,17 +57,20 @@ class Particle {
     let distance = Math.sqrt(dx * dx + dy * dy)
 
     if (distance < mouse.radius + this.size) {
+      const force = (mouse.radius + this.size - distance) / mouse.radius
+      const moveStep = force * 3
+
       if (mouse.x < this.x && this.x < canvas.value.width - this.size * 10) {
-        this.x += 2 // Push away slightly or move with mouse
+        this.x += moveStep // Push away slightly or move with mouse
       }
       if (mouse.x > this.x && this.x > this.size * 10) {
-        this.x -= 2
+        this.x -= moveStep
       }
       if (mouse.y < this.y && this.y < canvas.value.height - this.size * 10) {
-        this.y += 2
+        this.y += moveStep
       }
       if (mouse.y > this.y && this.y > this.size * 10) {
-        this.y -= 2
+        this.y -= moveStep
       }
     }
 

@@ -58,13 +58,6 @@
               </div>
             </div>
             <div class="setting-item">
-              <label>头像链接</label>
-              <div class="input-group">
-                <input type="text" v-model="editAvatar" placeholder="输入图片URL" />
-                <button class="btn-small" @click="updateAvatar">修改</button>
-              </div>
-            </div>
-            <div class="setting-item">
               <label>邮箱</label>
               <input type="email" :value="userStore.email" disabled />
             </div>
@@ -95,8 +88,6 @@ const router = useRouter()
 const userStore = useUserStore()
 const history = ref([])
 const editName = ref('')
-const editAvatar = ref('')
-const showAvatarInput = ref(false)
 const fileInput = ref(null)
 const isLoading = ref(true)
 
@@ -143,7 +134,6 @@ onMounted(async () => {
     if (profileRes) {
       userStore.setUser(profileRes)
       editName.value = userStore.name
-      editAvatar.value = userStore.avatar || ''
     }
 
     // Fetch History
@@ -169,19 +159,6 @@ const updateName = async () => {
     userStore.name = editName.value
     localStorage.setItem('username', editName.value)
     alert('用户名修改成功')
-  } catch (e) {
-    console.error(e)
-    alert('修改失败')
-  }
-}
-
-const updateAvatar = async () => {
-  if (!editAvatar.value) return
-  
-  try {
-    await updateProfile(userStore.uid, { avatar: editAvatar.value })
-    userStore.avatar = editAvatar.value
-    alert('头像修改成功')
   } catch (e) {
     console.error(e)
     alert('修改失败')
@@ -390,19 +367,63 @@ const deposit = async () => {
 }
 
 .change-pwd {
-  background: transparent;
-  border: 1px solid var(--text-light);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   color: var(--text);
-  padding: 8px 15px;
-  border-radius: 6px;
+  padding: 10px 20px;
+  border-radius: 8px;
   cursor: pointer;
+  transition: all 0.3s ease;
+  width: 100%;
+}
+
+.change-pwd:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .logout-btn {
   width: 100%;
+  padding: 12px;
+  margin-top: 30px;
+  background: rgba(255, 77, 77, 0.1);
+  color: #ff4d4d;
+  border: 1px solid rgba(255, 77, 77, 0.2);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.logout-btn:hover {
   background: rgba(255, 77, 77, 0.2);
-  color: var(--down);
-  border: 1px solid var(--down);
+  border-color: #ff4d4d;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 77, 77, 0.1);
+}
+
+.input-group {
+  display: flex;
+  gap: 10px;
+}
+
+.btn-small {
+  padding: 0 20px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.btn-small:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
 }
 
 .loading-container {
