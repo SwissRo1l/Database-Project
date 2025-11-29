@@ -2,9 +2,12 @@
   <div class="page item-detail">
     <NavBar />
     <div class="container">
-      <div class="detail-card">
+      <div v-if="isLoading" class="loading-container">
+        <LoadingWave />
+      </div>
+      <div v-else class="detail-card">
         <div class="item-image">
-          <img :src="displayImage" alt="Item Image">
+          <img :src="displayImage" alt="Item Image" />
         </div>
         <div class="item-info">
           <h1>{{ item.name }}</h1>
@@ -35,6 +38,7 @@
 import { ref, onMounted, nextTick, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import NavBar from '../components/NavBar.vue'
+import LoadingWave from '../components/LoadingWave.vue'
 import { fetchItem } from '../api/item'
 import { fetchDailyHistory } from '../api/market'
 import * as echarts from 'echarts'
@@ -43,8 +47,10 @@ import { getItemImage } from '../utils/itemImages'
 const route = useRoute()
 const router = useRouter()
 const item = ref({})
+const isLoading = ref(true)
 const chartRef = ref(null)
 let chartInstance = null
+const chartData = ref([])
 
 const displayImage = computed(() => {
   return getItemImage(item.value.name || '')
@@ -52,6 +58,7 @@ const displayImage = computed(() => {
 
 onMounted(async () => {
   const id = route.params.id
+  isLoading.value = true
   try {
     const res = await fetchItem(id)
     item.value = res || {}
@@ -68,6 +75,12 @@ onMounted(async () => {
       change: 3.2,
       img: "https://via.placeholder.com/400x300"
     }
+  } finally {
+    isLoading.value = false
+    await nextTick()
+    if (chartData.value.length > 0) {
+      renderChart(chartData.value)
+    }
   }
   
   window.addEventListener('resize', () => {
@@ -79,7 +92,7 @@ const loadChartData = async (itemId) => {
   try {
     const data = await fetchDailyHistory(itemId)
     if (data && data.length > 0) {
-      renderChart(data)
+      chartData.value = data
     }
   } catch (e) {
     console.error("Failed to load chart data", e)
@@ -227,6 +240,13 @@ const goBack = () => {
 .chart-section h3 {
   margin-bottom: 20px;
   color: var(--text);
+}
+
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
 }
 
 .chart-container {

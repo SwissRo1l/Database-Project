@@ -13,7 +13,7 @@
           placeholder="搜索装备..." 
           v-model="searchQuery"
           @keyup.enter="handleSearch"
-        />
+        >
       </div>
     </div>
 

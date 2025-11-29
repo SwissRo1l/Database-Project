@@ -1,44 +1,48 @@
 <template>
   <div class="page history-page">
-    <NavBar />
+    <NavBar></NavBar>
     <div class="container">
       <div class="header">
         <h2>全部交易记录</h2>
         <router-link to="/profile" class="back-link">返回个人中心</router-link>
       </div>
 
-      <div class="history-list">
-        <div class="history-item" v-for="record in history" :key="record.id">
-          <div class="icon" :class="record.type === 'buy' ? 'buy' : 'sell'">
-            {{ record.type === 'buy' ? '买' : '卖' }}
-          </div>
-          <div class="details">
-            <p class="name">{{ record.itemName }}</p>
-            <p class="date">{{ record.date }}</p>
-          </div>
-          <div class="amount" :class="record.type === 'buy' ? 'negative' : 'positive'">
-            {{ record.type === 'buy' ? '-' : '+' }}{{ Math.abs(record.price) }} G
-          </div>
-        </div>
-        <div v-if="history.length === 0" class="empty-state">暂无交易记录</div>
-      </div>
+      <LoadingWave v-if="isLoading"></LoadingWave>
 
-      <div class="pagination" v-if="totalPages > 1">
-        <button 
-          :disabled="currentPage === 0" 
-          @click="changePage(currentPage - 1)"
-          class="page-btn"
-        >
-          上一页
-        </button>
-        <span class="page-info">第 {{ currentPage + 1 }} 页 / 共 {{ totalPages }} 页</span>
-        <button 
-          :disabled="currentPage >= totalPages - 1" 
-          @click="changePage(currentPage + 1)"
-          class="page-btn"
-        >
-          下一页
-        </button>
+      <div v-else>
+        <div class="history-list">
+          <div class="history-item" v-for="record in history" :key="record.id">
+            <div class="icon" :class="record.type === 'buy' ? 'buy' : 'sell'">
+              {{ record.type === 'buy' ? '买' : '卖' }}
+            </div>
+            <div class="details">
+              <p class="name">{{ record.itemName }}</p>
+              <p class="date">{{ record.date }}</p>
+            </div>
+            <div class="amount" :class="record.type === 'buy' ? 'negative' : 'positive'">
+              {{ record.type === 'buy' ? '-' : '+' }}{{ Math.abs(record.price) }} G
+            </div>
+          </div>
+          <div v-if="history.length === 0" class="empty-state">暂无交易记录</div>
+        </div>
+
+        <div class="pagination" v-if="totalPages > 1">
+          <button 
+            :disabled="currentPage === 0" 
+            @click="changePage(currentPage - 1)"
+            class="page-btn"
+          >
+            上一页
+          </button>
+          <span class="page-info">第 {{ currentPage + 1 }} 页 / 共 {{ totalPages }} 页</span>
+          <button 
+            :disabled="currentPage >= totalPages - 1" 
+            @click="changePage(currentPage + 1)"
+            class="page-btn"
+          >
+            下一页
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -47,17 +51,20 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import NavBar from '../components/NavBar.vue'
+import LoadingWave from '../components/LoadingWave.vue'
 import { fetchOrders } from '../api/trade'
 
 const history = ref([])
 const currentPage = ref(0)
 const totalPages = ref(0)
 const pageSize = 10
+const isLoading = ref(false)
 
 const loadHistory = async (page) => {
   const userId = localStorage.getItem('userId')
   if (!userId) return
 
+  isLoading.value = true
   try {
     const res = await fetchOrders({ userId, page, size: pageSize })
     if (res && res.content) {
@@ -69,6 +76,8 @@ const loadHistory = async (page) => {
     }
   } catch (e) {
     console.error(e)
+  } finally {
+    isLoading.value = false
   }
 }
 

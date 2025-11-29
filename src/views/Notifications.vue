@@ -1,6 +1,6 @@
 <template>
   <div class="page notifications-page">
-    <NavBar />
+    <NavBar></NavBar>
     <div class="container">
       <div class="header">
         <h2>通知中心</h2>

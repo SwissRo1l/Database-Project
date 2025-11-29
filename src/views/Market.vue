@@ -100,9 +100,7 @@
 
       <!-- Item Grid -->
       <div v-if="isLoading" class="loading-state">
-        <div class="loading-wave">
-          <span>加</span><span>载</span><span>中</span><span>.</span><span>.</span><span>.</span>
-        </div>
+        <LoadingWave />
       </div>
       <div v-else class="item-grid">
         <ItemCard 
@@ -110,6 +108,25 @@
           :key="item.id" 
           :item="item" 
         />
+      </div>
+
+      <!-- Pagination (Only for All Items tab) -->
+      <div class="pagination" v-if="currentTab === 'all' && !isLoading && totalPages > 1">
+        <button 
+          :disabled="currentPage === 0" 
+          @click="changePage(currentPage - 1)"
+          class="page-btn"
+        >
+          上一页
+        </button>
+        <span class="page-info">第 {{ currentPage + 1 }} 页 / 共 {{ totalPages }} 页</span>
+        <button 
+          :disabled="currentPage >= totalPages - 1" 
+          @click="changePage(currentPage + 1)"
+          class="page-btn"
+        >
+          下一页
+        </button>
       </div>
       
       <!-- Empty State -->
@@ -125,6 +142,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import NavBar from "../components/NavBar.vue"
 import ItemCard from "../components/ItemCard.vue"
+import LoadingWave from "../components/LoadingWave.vue"
 import { fetchListings } from "../api/market"
 
 const route = useRoute()
@@ -136,6 +154,11 @@ const searchResults = ref([])
 const isSearching = ref(false)
 const isLoading = ref(false)
 const currentTab = ref('hot')
+
+// Pagination
+const currentPage = ref(0)
+const totalPages = ref(0)
+const pageSize = 12
 
 const filterSort = ref('default')
 const filterCategory = ref('All')
@@ -195,10 +218,13 @@ const displayItems = computed(() => {
   return currentTab.value === 'hot' ? hotItems.value : topGainers.value
 })
 
-const fetchAllItems = async () => {
+const fetchAllItems = async (page = 0) => {
   isLoading.value = true
   try {
-    const params = { limit: 100 }
+    const params = { 
+      page: page,
+      size: pageSize
+    }
     if (filterSort.value !== 'default') {
       params.sort = filterSort.value
     }
@@ -206,7 +232,17 @@ const fetchAllItems = async () => {
       params.category = filterCategory.value
     }
     const res = await fetchListings(params)
-    allItems.value = res || []
+    
+    if (res && res.content) {
+      allItems.value = res.content
+      totalPages.value = res.totalPages
+      currentPage.value = res.number
+    } else {
+      // Fallback for non-paged response
+      allItems.value = res || []
+      totalPages.value = 1
+      currentPage.value = 0
+    }
   } catch (e) {
     console.error(e)
   } finally {
@@ -214,9 +250,16 @@ const fetchAllItems = async () => {
   }
 }
 
+const changePage = (page) => {
+  if (page >= 0 && page < totalPages.value) {
+    fetchAllItems(page)
+    scrollToGrid()
+  }
+}
+
 watch([filterSort, filterCategory], () => {
   if (currentTab.value === 'all') {
-    fetchAllItems()
+    fetchAllItems(0)
   }
 })
 
@@ -561,6 +604,40 @@ onUnmounted(() => {
 
 .filter-group select:focus {
   border-color: var(--primary);
+}
+
+/* Pagination */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 40px;
+  gap: 20px;
+}
+
+.page-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text);
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.page-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.page-btn:not(:disabled):hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--primary);
+}
+
+.page-info {
+  color: var(--text-light);
+  font-size: 0.9rem;
 }
 </style>
 

@@ -1,6 +1,6 @@
 <template>
   <div class="page trade">
-    <NavBar />
+    <NavBar></NavBar>
     <div class="container">
       
       <!-- Top Bar: Item Selection -->
@@ -16,7 +16,7 @@
             </select>
           </div>
           <div class="item-preview" v-if="selectedItem">
-            <img :src="getItemImage(selectedItemName)" alt="Preview" />
+            <img :src="getItemImage(selectedItemName)" alt="Preview">
           </div>
         </div>
         <div class="user-balance" v-if="userBalance !== null">
@@ -24,7 +24,9 @@
         </div>
       </div>
 
-      <div class="trade-layout" v-if="selectedItem">
+      <LoadingWave v-if="isLoading"></LoadingWave>
+
+      <div class="trade-layout" v-else-if="selectedItem">
         
         <!-- Left: Order Book (Vertical Stack) -->
         <div class="trade-panel order-book-panel">
@@ -149,9 +151,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import NavBar from '../components/NavBar.vue'
+import LoadingWave from '../components/LoadingWave.vue'
 import { searchItems } from '../api/item'
 import { fetchListings, fetchTradeHistory, executeTrade } from '../api/market'
 import { createOrder } from '../api/trade'
@@ -169,6 +172,7 @@ const items = ref([])
 const selectedItem = ref("")
 const userBalance = computed(() => userStore.available)
 const activeTab = ref('buy')
+const isLoading = ref(false)
 
 const selectedItemName = computed(() => {
   const item = items.value.find(i => i.id === selectedItem.value)
@@ -184,6 +188,7 @@ const formPrice = ref('')
 const formAmount = ref(1)
 const chartRef = ref(null)
 let chartInstance = null
+const candleData = ref([])
 
 // Computed property to reverse sell orders for display (Lowest price at bottom)
 const sellOrdersReversed = computed(() => {
@@ -232,6 +237,7 @@ const loadUserBalance = async () => {
 const handleItemChange = async () => {
   if (!selectedItem.value) return
   
+  isLoading.value = true
   try {
     const res = await fetchListings({ itemId: selectedItem.value, limit: 100 })
     const allOrders = res || []
@@ -258,15 +264,21 @@ const handleItemChange = async () => {
       formPrice.value = currentPrice.value
     }
 
-    // Load History and Chart
-    await loadHistoryAndRenderChart()
+    // Load History
+    await loadHistoryData()
 
   } catch (e) {
     console.error(e)
+  } finally {
+    isLoading.value = false
+    await nextTick()
+    if (candleData.value.length > 0) {
+      renderChart(candleData.value)
+    }
   }
 }
 
-const loadHistoryAndRenderChart = async () => {
+const loadHistoryData = async () => {
   try {
     const history = await fetchTradeHistory(selectedItem.value)
     recentTrades.value = history.reverse().slice(0, 20) // Show last 20 trades in list
@@ -278,6 +290,7 @@ const loadHistoryAndRenderChart = async () => {
     
     if (rawData.length === 0) {
         if (chartInstance) chartInstance.dispose()
+        candleData.value = []
         return
     }
 
@@ -308,7 +321,7 @@ const loadHistoryAndRenderChart = async () => {
     })
     if (currentCandle) candles.push(currentCandle)
 
-    renderChart(candles)
+    candleData.value = candles
   } catch (e) {
     console.error("Failed to load history", e)
   }

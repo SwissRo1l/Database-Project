@@ -31,12 +31,14 @@ public class MarketController {
     private OrderService orderService;
 
     @GetMapping("/listings")
-    public List<Map<String, Object>> getListings(
+    public Object getListings(
             @RequestParam(required = false) String sort, 
             @RequestParam(required = false) Integer limit,
             @RequestParam(required = false) Integer itemId,
             @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) String category) {
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
         
         List<MarketOrder> orders = orderRepository.findByStatus("OPEN");
         
@@ -73,24 +75,51 @@ public class MarketController {
                 // 'hot' and 'gainers' are currently just placeholders or default sort
             }
         }
-        
-        return orders.stream().limit(limit != null ? limit : 100).map(order -> {
-            Asset asset = order.getAsset();
-            String encodedName = asset.getAssetName().replace(" ", "+");
-            String imgUrl = "https://via.placeholder.com/300x200?text=" + encodedName;
+
+        // Pagination Logic
+        if (page != null && size != null) {
+            int totalElements = orders.size();
+            int totalPages = (int) Math.ceil((double) totalElements / size);
+            int start = page * size;
+            int end = Math.min(start + size, totalElements);
             
-            return Map.<String, Object>of(
-                "id", asset.getAssetId(),
-                "orderId", order.getOrderId(),
-                "name", asset.getAssetName(),
-                "price", order.getPrice(),
-                "quantity", order.getQuantity(),
-                "type", order.getOrderType(),
-                "createTime", order.getCreateTime(),
-                "change", (Math.random() * 10) - 5, // Mock change between -5% and +5%
-                "img", imgUrl
+            List<MarketOrder> pagedOrders;
+            if (start >= totalElements) {
+                pagedOrders = List.of();
+            } else {
+                pagedOrders = orders.subList(start, end);
+            }
+
+            List<Map<String, Object>> content = pagedOrders.stream().map(this::mapOrderToResponse).collect(Collectors.toList());
+
+            return Map.of(
+                "content", content,
+                "totalPages", totalPages,
+                "totalElements", totalElements,
+                "number", page,
+                "size", size
             );
-        }).collect(Collectors.toList());
+        }
+        
+        return orders.stream().limit(limit != null ? limit : 100).map(this::mapOrderToResponse).collect(Collectors.toList());
+    }
+
+    private Map<String, Object> mapOrderToResponse(MarketOrder order) {
+        Asset asset = order.getAsset();
+        String encodedName = asset.getAssetName().replace(" ", "+");
+        String imgUrl = "https://via.placeholder.com/300x200?text=" + encodedName;
+        
+        return Map.<String, Object>of(
+            "id", asset.getAssetId(),
+            "orderId", order.getOrderId(),
+            "name", asset.getAssetName(),
+            "price", order.getPrice(),
+            "quantity", order.getQuantity(),
+            "type", order.getOrderType(),
+            "createTime", order.getCreateTime(),
+            "change", (Math.random() * 10) - 5, // Mock change between -5% and +5%
+            "img", imgUrl
+        );
     }
 
     @PostMapping("/trade")

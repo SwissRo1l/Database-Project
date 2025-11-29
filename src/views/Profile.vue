@@ -2,73 +2,78 @@
   <div class="page profile">
     <NavBar />
     <div class="container">
-      <div class="profile-header">
-        <div class="avatar" @click="triggerFileInput" title="点击修改头像">
-          <img :src="userStore.avatar || 'https://via.placeholder.com/100'" alt="Avatar">
-          <div class="avatar-overlay">✏️</div>
-          <input type="file" ref="fileInput" @change="handleFileUpload" style="display: none" accept="image/*">
-        </div>
-        <div class="user-info">
-          <h2>{{ userStore.name }}<span class="uid-tag">#{{ userStore.uid }}</span></h2>
-          <div class="tags">
-            <span class="tag vip">VIP {{ Math.floor(userStore.available / 10000) }}</span>
-            <span class="tag verified">已认证</span>
-          </div>
-        </div>
-        <div class="balance-card">
-          <p class="label">账户余额</p>
-          <p class="amount">{{ (userStore.available || 0).toLocaleString() }} G</p>
-          <button class="deposit-btn" @click="deposit">充值</button>
-        </div>
+      <div v-if="isLoading" class="loading-container">
+        <LoadingWave />
       </div>
-
-      <div class="content-grid">
-        <div class="section history">
-          <div class="section-header">
-            <h3>交易历史</h3>
-            <router-link to="/history" class="view-all">查看全部</router-link>
+      <div v-else>
+        <div class="profile-header">
+          <div class="avatar" @click="triggerFileInput" title="点击修改头像">
+            <img :src="userStore.avatar || 'https://via.placeholder.com/100'" alt="Avatar" />
+            <div class="avatar-overlay">✏️</div>
+            <input type="file" ref="fileInput" @change="handleFileUpload" style="display: none" accept="image/*" />
           </div>
-          <div class="history-list">
-            <div class="history-item" v-for="record in history" :key="record.id">
-              <div class="icon" :class="record.type === 'buy' ? 'buy' : 'sell'">
-                {{ record.type === 'buy' ? '买' : '卖' }}
-              </div>
-              <div class="details">
-                <p class="name">{{ record.itemName }}</p>
-                <p class="date">{{ record.date }}</p>
-              </div>
-              <div class="amount" :class="record.type === 'buy' ? 'negative' : 'positive'">
-                {{ record.type === 'buy' ? '-' : '+' }}{{ Math.abs(record.price) }} G
-              </div>
+          <div class="user-info">
+            <h2>{{ userStore.name }}<span class="uid-tag">#{{ userStore.uid }}</span></h2>
+            <div class="tags">
+              <span class="tag vip">VIP {{ Math.floor(userStore.available / 10000) }}</span>
+              <span class="tag verified">已认证</span>
             </div>
+          </div>
+          <div class="balance-card">
+            <p class="label">账户余额</p>
+            <p class="amount">{{ (userStore.available || 0).toLocaleString() }} G</p>
+            <button class="deposit-btn" @click="deposit">充值</button>
           </div>
         </div>
 
-        <div class="section settings">
-          <h3>账户设置</h3>
-          <div class="setting-item">
-            <label>用户名</label>
-            <div class="input-group">
-              <input type="text" v-model="editName" :placeholder="userStore.name">
-              <button class="btn-small" @click="updateName">修改</button>
+        <div class="content-grid">
+          <div class="section history">
+            <div class="section-header">
+              <h3>交易历史</h3>
+              <router-link to="/history" class="view-all">查看全部</router-link>
+            </div>
+            <div class="history-list">
+              <div class="history-item" v-for="record in history" :key="record.id">
+                <div class="icon" :class="record.type === 'buy' ? 'buy' : 'sell'">
+                  {{ record.type === 'buy' ? '买' : '卖' }}
+                </div>
+                <div class="details">
+                  <p class="name">{{ record.itemName }}</p>
+                  <p class="date">{{ record.date }}</p>
+                </div>
+                <div class="amount" :class="record.type === 'buy' ? 'negative' : 'positive'">
+                  {{ record.type === 'buy' ? '-' : '+' }}{{ Math.abs(record.price) }} G
+                </div>
+              </div>
             </div>
           </div>
-          <div class="setting-item">
-            <label>头像链接</label>
-            <div class="input-group">
-              <input type="text" v-model="editAvatar" placeholder="输入图片URL">
-              <button class="btn-small" @click="updateAvatar">修改</button>
+
+          <div class="section settings">
+            <h3>账户设置</h3>
+            <div class="setting-item">
+              <label>用户名</label>
+              <div class="input-group">
+                <input type="text" v-model="editName" :placeholder="userStore.name" />
+                <button class="btn-small" @click="updateName">修改</button>
+              </div>
             </div>
+            <div class="setting-item">
+              <label>头像链接</label>
+              <div class="input-group">
+                <input type="text" v-model="editAvatar" placeholder="输入图片URL" />
+                <button class="btn-small" @click="updateAvatar">修改</button>
+              </div>
+            </div>
+            <div class="setting-item">
+              <label>邮箱</label>
+              <input type="email" :value="userStore.email" disabled />
+            </div>
+            <div class="setting-item">
+              <label>密码</label>
+              <button class="change-pwd">修改密码</button>
+            </div>
+            <button class="logout-btn" @click="logout">退出登录</button>
           </div>
-          <div class="setting-item">
-            <label>邮箱</label>
-            <input type="email" :value="userStore.email" disabled>
-          </div>
-          <div class="setting-item">
-            <label>密码</label>
-            <button class="change-pwd">修改密码</button>
-          </div>
-          <button class="logout-btn" @click="logout">退出登录</button>
         </div>
       </div>
     </div>
@@ -79,6 +84,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import NavBar from '../components/NavBar.vue'
+import LoadingWave from '../components/LoadingWave.vue'
 import { fetchProfile, updateProfile } from '../api/user'
 import { fetchOrders } from '../api/trade'
 import { recharge } from '../api/wallet'
@@ -92,6 +98,7 @@ const editName = ref('')
 const editAvatar = ref('')
 const showAvatarInput = ref(false)
 const fileInput = ref(null)
+const isLoading = ref(true)
 
 const triggerFileInput = () => {
   fileInput.value.click()
@@ -129,6 +136,7 @@ onMounted(async () => {
     return
   }
 
+  isLoading.value = true
   try {
     // Fetch Profile
     const profileRes = await fetchProfile(userId)
@@ -148,6 +156,8 @@ onMounted(async () => {
     }
   } catch (e) {
     console.error(e)
+  } finally {
+    isLoading.value = false
   }
 })
 
@@ -393,9 +403,12 @@ const deposit = async () => {
   background: rgba(255, 77, 77, 0.2);
   color: var(--down);
   border: 1px solid var(--down);
-  padding: 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  margin-top: 20px;
+}
+
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
 }
 </style>
