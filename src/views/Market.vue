@@ -144,6 +144,7 @@ import NavBar from "../components/NavBar.vue"
 import ItemCard from "../components/ItemCard.vue"
 import LoadingWave from "../components/LoadingWave.vue"
 import { fetchListings } from "../api/market"
+import { normalizeItemFields, getSales24, getChangeVal } from '../utils/marketHelpers'
 
 const route = useRoute()
 const router = useRouter()
@@ -234,12 +235,39 @@ const fetchAllItems = async (page = 0) => {
     const res = await fetchListings(params)
     
     if (res && res.content) {
-      allItems.value = res.content
+      // Normalize fields on each item
+      let pageItems = res.content.map(i => normalizeItemFields(i))
+
+      // For each item on this page, ensure it has at least one SELL order in the market (match trade page behavior)
+      try {
+        const checks = await Promise.all(pageItems.map(async it => {
+          try {
+            const orders = await fetchListings({ itemId: it.id, limit: 1 })
+            // orders could be an array of orders or an object with content
+            if (!orders) return false
+            if (Array.isArray(orders)) {
+              return orders.some(o => o && (o.type === 'SELL' || o.type === 'sell'))
+            }
+            if (orders.content && Array.isArray(orders.content)) {
+              return orders.content.some(o => o && (o.type === 'SELL' || o.type === 'sell'))
+            }
+            return false
+          } catch (e) {
+            return false
+          }
+        }))
+
+        pageItems = pageItems.filter((it, idx) => checks[idx])
+      } catch (e) {
+        console.warn('Failed to verify sell orders for page items', e)
+      }
+
+      allItems.value = pageItems
       totalPages.value = res.totalPages
       currentPage.value = res.number
     } else {
       // Fallback for non-paged response
-      allItems.value = res || []
+      allItems.value = (res || []).map(i => normalizeItemFields(i))
       totalPages.value = 1
       currentPage.value = 0
     }
@@ -293,11 +321,45 @@ const loadData = async () => {
   try {
     // 获取热门商品
     const hotRes = await fetchListings({ sort: 'hot', limit: 8 })
+    // Prefer server ordering but enforce client-side fallback sorting by 24h sales (desc)
     hotItems.value = hotRes || []
+    const getSalesCount = (it) => {
+      // try several possible fields that backend might use
+      return Number(it?.sales24 ?? it?.sales ?? it?.volume ?? it?.tradeCount ?? it?.transactions ?? it?.sold ?? 0) || 0
+    }
+    if (hotItems.value && hotItems.value.length > 1) {
+      hotItems.value = [...hotItems.value].sort((a, b) => getSalesCount(b) - getSalesCount(a))
+    }
 
     // 获取涨幅榜
     const gainersRes = await fetchListings({ sort: 'gainers', limit: 8 })
     topGainers.value = gainersRes || []
+    const getChangeVal = (it) => {
+      // support multiple possible property names for percent change
+      return Number(it?.change ?? it?.changePercent ?? it?.percentChange ?? it?.priceChangePercent ?? 0) || 0
+    }
+    if (topGainers.value && topGainers.value.length > 1) {
+      topGainers.value = [...topGainers.value].sort((a, b) => getChangeVal(b) - getChangeVal(a))
+    }
+    // Normalize change values: if same item appears in both lists, prefer change from gainers dataset
+    try {
+      const changeMap = new Map()
+      topGainers.value.forEach(it => {
+        if (it && it.id !== undefined) changeMap.set(String(it.id), getChangeVal(it))
+      })
+      hotItems.value = hotItems.value.map(it => {
+        if (!it || it.id === undefined) return it
+        const mapped = { ...it }
+        const mappedChange = changeMap.get(String(it.id))
+        if (mappedChange !== undefined && !Number.isNaN(mappedChange)) {
+          mapped.change = mappedChange
+        }
+        return mapped
+      })
+    } catch (e) {
+      // ignore normalization errors
+      console.warn('Failed to normalize change values between hot and gainers', e)
+    }
   } catch (error) {
     console.error('Failed to load market data:', error)
     // Fallback to mock data if API fails

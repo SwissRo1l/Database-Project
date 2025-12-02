@@ -115,10 +115,7 @@
               </div>
             </div>
             
-            <div class="slider-group">
-              <!-- Mock slider -->
-              <input type="range" min="0" max="100" value="0" class="slider">
-            </div>
+            <!-- slider removed: UI did not require the range input -->
 
             <div class="summary">
               <div class="row">
@@ -305,28 +302,39 @@ const handleItemChange = async (silent = false) => {
 
 const loadHistoryData = async () => {
   try {
-    const history = await fetchTradeHistory(selectedItem.value)
-    recentTrades.value = history.reverse().slice(0, 20) // Show last 20 trades in list
-    
-    // Process data for candles
-    // Simple aggregation: Group by minute
+    const history = (await fetchTradeHistory(selectedItem.value)) || []
+
+    // Determine latest trade by timestamp (robust against order returned by API)
+    if (history.length > 0) {
+      const latest = history.reduce((a, b) => {
+        return new Date(a.time) > new Date(b.time) ? a : b
+      })
+      // Use latest trade price as the "最新成交价"
+      currentPrice.value = (typeof latest.price === 'number') ? latest.price.toFixed(2) : latest.price
+    }
+
+    // Prepare chronological data for candles and descending list for recentTrades
+    const chrono = [...history].sort((a, b) => new Date(a.time) - new Date(b.time))
+    recentTrades.value = [...chrono].reverse().slice(0, 20) // Show last 20 trades (most recent first)
+
+    // Process data for candles (chrono is oldest->newest)
     const candles = []
-    const rawData = history.reverse() // Back to chronological order
-    
+    const rawData = chrono
+
     if (rawData.length === 0) {
-        if (chartInstance) chartInstance.dispose()
-        candleData.value = []
-        return
+      if (chartInstance) chartInstance.dispose()
+      candleData.value = []
+      return
     }
 
     let currentCandle = null
-    
+
     rawData.forEach(trade => {
       const date = new Date(trade.time)
       // Round down to nearest minute
       date.setSeconds(0, 0)
       const timeStr = date.getTime()
-      
+
       if (!currentCandle || currentCandle.time !== timeStr) {
         if (currentCandle) candles.push(currentCandle)
         currentCandle = {
@@ -807,13 +815,7 @@ const handleCancelOrder = async (orderId) => {
   font-size: 12px;
 }
 
-.slider-group {
-  margin: 20px 0;
-}
-
-.slider {
-  width: 100%;
-}
+/* slider styles removed (range input deleted from template) */
 
 .summary {
   margin-bottom: 20px;

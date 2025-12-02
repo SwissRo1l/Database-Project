@@ -4,18 +4,19 @@
   <div class="item-card" @click="goToDetail">
     <div class="img-container">
       <img :src="displayImage" class="item-img">
-      <div class="discount-badge" :class="item.change >= 0 ? 'up-bg' : 'down-bg'">
-        {{ item.change >= 0 ? '+' : '' }}{{ Number(item.change).toFixed(2) }}%
+      <div class="discount-badge" :class="changeValue >= 0 ? 'up-bg' : 'down-bg'">
+        {{ changeValue >= 0 ? '+' : '' }}{{ Number(changeValue).toFixed(2) }}%
       </div>
     </div>
 
     <div class="card-content">
-      <h3 class="item-name">{{ item.name }}</h3>
-      <div class="price-row">
-        <span class="price">￥{{ item.price }}</span>
+        <h3 class="item-name">{{ item.name }}</h3>
+        <div class="price-row">
+          <span class="price">￥{{ item.price }}</span>
+          <span v-if="sales > 0" class="sales-info">24h销量: {{ sales }}</span>
+        </div>
+        <button class="button-primary full-width">查看详情</button>
       </div>
-      <button class="button-primary full-width">查看详情</button>
-    </div>
   </div>
 </template>
 
@@ -23,6 +24,7 @@
 import { useRouter } from 'vue-router'
 import { computed } from 'vue'
 import { getItemImage } from '../utils/itemImages'
+import { getSales24, getChangeVal } from '../utils/marketHelpers'
 
 const props = defineProps({
   item: Object
@@ -33,6 +35,10 @@ const router = useRouter()
 const displayImage = computed(() => {
   return getItemImage(props.item.name)
 })
+
+const sales = computed(() => getSales24(props.item))
+
+const changeValue = computed(() => getChangeVal(props.item))
 
 const goToDetail = () => {
   router.push(`/item/${props.item.id}`)
@@ -119,6 +125,12 @@ const goToDetail = () => {
   font-size: 1.2rem;
   font-weight: bold;
   color: #fff;
+}
+
+.sales-info {
+  font-size: 0.85rem;
+  color: var(--muted, #9aa4b2);
+  margin-left: 10px;
 }
 
 .full-width {

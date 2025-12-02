@@ -9,8 +9,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @RestController
@@ -41,7 +44,8 @@ public class MarketController {
             @RequestParam(required = false) Integer size) {
         
         List<MarketOrder> orders = orderRepository.findByStatus("OPEN");
-        
+
+        // If itemId specified, return individual orders for that asset (existing behavior)
         if (itemId != null) {
             orders = orders.stream()
                 .filter(o -> o.getAsset().getAssetId().equals(itemId))
@@ -72,36 +76,132 @@ public class MarketController {
                 case "newest":
                     orders.sort((o1, o2) -> o2.getCreateTime().compareTo(o1.getCreateTime()));
                     break;
-                // 'hot' and 'gainers' are currently just placeholders or default sort
+                // 'hot' and 'gainers' are handled below when itemId is not provided
             }
         }
 
-        // Pagination Logic
+        // If itemId provided, return orders as before
+        if (itemId != null) {
+            // Pagination for orders
+            if (page != null && size != null) {
+                int totalElements = orders.size();
+                int totalPages = (int) Math.ceil((double) totalElements / size);
+                int start = page * size;
+                int end = Math.min(start + size, totalElements);
+
+                List<MarketOrder> pagedOrders;
+                if (start >= totalElements) {
+                    pagedOrders = List.of();
+                } else {
+                    pagedOrders = orders.subList(start, end);
+                }
+
+                List<Map<String, Object>> content = pagedOrders.stream().map(this::mapOrderToResponse).collect(Collectors.toList());
+
+                return Map.of(
+                    "content", content,
+                    "totalPages", totalPages,
+                    "totalElements", totalElements,
+                    "number", page,
+                    "size", size
+                );
+            }
+
+            return orders.stream().limit(limit != null ? limit : 100).map(this::mapOrderToResponse).collect(Collectors.toList());
+        }
+
+        // No itemId: aggregate by asset to build market listing summary (one entry per asset)
+        Map<Integer, List<MarketOrder>> ordersByAsset = orders.stream()
+            .filter(o -> o.getAsset() != null)
+            .collect(Collectors.groupingBy(o -> o.getAsset().getAssetId()));
+
+        List<Map<String, Object>> assetSummaries = ordersByAsset.entrySet().stream().map(entry -> {
+            Integer assetIdKey = entry.getKey();
+            List<MarketOrder> assetOrders = entry.getValue();
+            Asset asset = assetOrders.get(0).getAsset();
+
+            // lowest sell price
+            Optional<java.math.BigDecimal> lowestPrice = assetOrders.stream().map(MarketOrder::getPrice).min(java.util.Comparator.naturalOrder());
+
+            // compute sales in last 24 hours and change percent using DB-side aggregations for performance
+            java.time.Instant now = java.time.Instant.now();
+            java.time.Instant dayBefore = now.minus(Duration.ofHours(24));
+            java.sql.Timestamp sinceTs = java.sql.Timestamp.from(dayBefore);
+            java.sql.Timestamp beforeTs = java.sql.Timestamp.from(dayBefore);
+
+            Long sales24 = 0L;
+            try {
+                sales24 = Optional.ofNullable(tradeHistoryRepository.sumQuantitySince(assetIdKey, sinceTs)).orElse(0L);
+            } catch (Exception ex) {
+                // fallback to 0 on error
+                sales24 = 0L;
+            }
+
+            Double latestPrice = Optional.ofNullable(tradeHistoryRepository.findLatestPriceByAssetId(assetIdKey)).orElse(null);
+            Double price24hAgo = Optional.ofNullable(tradeHistoryRepository.findPriceAtOrBefore(assetIdKey, beforeTs)).orElse(null);
+            Double changePercent = 0.0;
+            if (latestPrice != null && price24hAgo != null && price24hAgo != 0) {
+                changePercent = ((latestPrice - price24hAgo) / price24hAgo) * 100.0;
+            }
+
+            String encodedName = asset.getAssetName().replace(" ", "+");
+            String imgUrl = "https://via.placeholder.com/300x200?text=" + encodedName;
+
+            return Map.<String, Object>of(
+                "id", asset.getAssetId(),
+                "name", asset.getAssetName(),
+                "price", lowestPrice.orElse(java.math.BigDecimal.ZERO),
+                "img", imgUrl,
+                "sales24", sales24,
+                "change", changePercent,
+                "hasSellOrders", true
+            );
+        }).collect(Collectors.toList());
+
+        // Sort asset summaries according to sort param
+        if (sort != null) {
+            switch (sort) {
+                case "hot":
+                    assetSummaries.sort((a, b) -> Long.compare((Long) b.getOrDefault("sales24", 0L), (Long) a.getOrDefault("sales24", 0L)));
+                    break;
+                case "gainers":
+                    assetSummaries.sort((a, b) -> Double.compare(((Number) b.getOrDefault("change", 0)).doubleValue(), ((Number) a.getOrDefault("change", 0)).doubleValue()));
+                    break;
+                case "price_asc":
+                    assetSummaries.sort((a, b) -> new java.math.BigDecimal(a.get("price" ).toString()).compareTo(new java.math.BigDecimal(b.get("price").toString())));
+                    break;
+                case "price_desc":
+                    assetSummaries.sort((a, b) -> new java.math.BigDecimal(b.get("price" ).toString()).compareTo(new java.math.BigDecimal(a.get("price").toString())));
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        // Pagination for asset summaries
         if (page != null && size != null) {
-            int totalElements = orders.size();
+            int totalElements = assetSummaries.size();
             int totalPages = (int) Math.ceil((double) totalElements / size);
             int start = page * size;
             int end = Math.min(start + size, totalElements);
-            
-            List<MarketOrder> pagedOrders;
+
+            List<Map<String, Object>> pagedAssets;
             if (start >= totalElements) {
-                pagedOrders = List.of();
+                pagedAssets = List.of();
             } else {
-                pagedOrders = orders.subList(start, end);
+                pagedAssets = assetSummaries.subList(start, end);
             }
 
-            List<Map<String, Object>> content = pagedOrders.stream().map(this::mapOrderToResponse).collect(Collectors.toList());
-
             return Map.of(
-                "content", content,
+                "content", pagedAssets,
                 "totalPages", totalPages,
                 "totalElements", totalElements,
                 "number", page,
                 "size", size
             );
         }
-        
-        return orders.stream().limit(limit != null ? limit : 100).map(this::mapOrderToResponse).collect(Collectors.toList());
+
+        return assetSummaries.stream().limit(limit != null ? limit : 100).collect(Collectors.toList());
     }
 
     private Map<String, Object> mapOrderToResponse(MarketOrder order) {
