@@ -1,0 +1,133 @@
+@import './base.css';
+
+/* Removed default Vue layout styles to allow full-width app */
+#app {
+  width: 100%;
+  min-height: 100vh;
+}
+
+/*
+a,
+.green {
+  text-decoration: none;
+  color: hsla(160, 100%, 37%, 1);
+  transition: 0.4s;
+  padding: 3px;
+}
+*/
+
+/*
+@media (hover: hover) {
+  a:hover {
+    background-color: hsla(160, 100%, 37%, 0.2);
+  }
+}
+*/
+
+/*
+@media (min-width: 1024px) {
+  body {
+    display: flex;
+    place-items: center;
+  }
+
+  #app {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    padding: 0 2rem;
+  }
+}
+*/
+
+:root {
+  --bg: #1A1A1D;
+  --bg-dark: #232428;
+  --panel: rgba(255, 255, 255, 0.05);
+  --primary: #3DAEFC;
+  --text: #CCCCCC;
+  --text-light: #8A8A8A;
+  --up: #F44336;
+  --down: #4CAF50;
+}
+
+/* Dynamic Background */
+body {
+  background: linear-gradient(-45deg, #131417, #1e1b4b, #0f172a, #1A1A1D);
+  background-size: 400% 400%;
+  animation: gradientBG 20s ease infinite;
+  color: var(--text);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+}
+
+@keyframes gradientBG {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Loading Wave Animation */
+.loading-wave {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 1.2rem;
+  color: var(--primary);
+  font-weight: 500;
+}
+
+.loading-wave span {
+  display: inline-block;
+  animation: wave 1.2s ease-in-out infinite;
+}
+
+.loading-wave span:nth-child(1) { animation-delay: 0.0s; }
+.loading-wave span:nth-child(2) { animation-delay: 0.1s; }
+.loading-wave span:nth-child(3) { animation-delay: 0.2s; }
+.loading-wave span:nth-child(4) { animation-delay: 0.3s; }
+.loading-wave span:nth-child(5) { animation-delay: 0.4s; }
+.loading-wave span:nth-child(6) { animation-delay: 0.5s; }
+
+@keyframes wave {
+  0%, 100% {
+    transform: translateY(0);
+    opacity: 0.6;
+  }
+  50% {
+    transform: translateY(-6px);
+    opacity: 1;
+    text-shadow: 0 0 8px rgba(61, 174, 252, 0.6);
+  }
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Segoe UI", sans-serif;
+}
+
+.card {
+  background: var(--panel);
+  padding: 20px;
+  border-radius: 8px;
+  backdrop-filter: blur(10px);
+  transition: 0.2s;
+}
+
+.card:hover {
+  border: 1px solid var(--primary);
+  transform: translateY(-3px);
+}
+
+.button-primary {
+  background: var(--primary);
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+}
+
+.button-primary:hover {
+  opacity: 0.8;
+}
